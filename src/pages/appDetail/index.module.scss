@@ -90,6 +90,18 @@
                             width: 6rem;
                         }
 
+                        .shortcutButton {
+                            margin-top: 0.5rem;
+                            padding: 0;
+                            height: auto;
+                            font-size: 0.8125rem;
+                            color: var(--ant-color-text-secondary);
+                        }
+
+                        .shortcutButton:hover {
+                            color: var(--ant-color-primary);
+                        }
+
                         .history {
                             font-size: 0.75rem;
                             color: var(--ant-color-text-tertiary);

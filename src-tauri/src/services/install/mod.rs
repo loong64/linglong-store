@@ -29,4 +29,5 @@ pub use operations::{
     uninstall_linglong_app,
     search_app_versions,
     run_linglong_app,
+    create_desktop_shortcut,
 };

@@ -67,6 +67,17 @@ export const runApp = async(
 }
 
 /**
+ * 为已安装应用创建桌面快捷方式（用户级目录）
+ * @param appId - 应用ID
+ * @returns Promise<string> 创建结果消息
+ */
+export const createDesktopShortcut = async(
+  appId: string,
+): Promise<string> => {
+  return await invoke('create_desktop_shortcut', { appId })
+}
+
+/**
  * 安装指定的玲珑应用
  * @param appId - 要安装的应用ID（例如：org.deepin.calculator）
  * @param version - 可选的版本号，如果不指定则安装最新版本
