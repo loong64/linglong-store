@@ -16,6 +16,7 @@ pub use install::{
     uninstall_linglong_app,
     search_app_versions,
     run_linglong_app,
+    create_desktop_shortcut,
 };
 
 const ENGLISH_LOCALE_ENV: [(&str, &str); 4] = [

@@ -207,6 +207,7 @@ src-tauri/
   - 文件小写中划线或目录分域。
 - 提交规范
   - 使用 Conventional Commits，如：`feat(ui): add app list filters`。
+- **新增功能必须同步更新 CHANGELOG.md**，按日期和版本记录变更要点，方便追溯和发布说明。
 
 ## React 与 UI 约定（Ant Design 5）
 

@@ -11,6 +11,7 @@ use services::{
     uninstall_linglong_app,
     search_app_versions,
     run_linglong_app,
+    create_desktop_shortcut as create_desktop_shortcut_service,
     install_linglong_app,
     cancel_linglong_install,
     InstalledApp,
@@ -93,6 +94,11 @@ async fn run_app(app_id: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+async fn create_desktop_shortcut(app_id: String) -> Result<String, String> {
+    create_desktop_shortcut_service(app_id).await
+}
+
+#[tauri::command]
 async fn install_app(
     app_handle: tauri::AppHandle,
     app_id: String,
@@ -167,6 +173,7 @@ pub fn run() {
             uninstall_app,
             search_versions,
             run_app,
+            create_desktop_shortcut,
             install_app,
             cancel_install,
             prune_apps,

@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button, Typography, Table, message, Spin, Space, Progress, Image } from 'antd'
-import { CopyOutlined } from '@ant-design/icons'
+import { CopyOutlined, LinkOutlined } from '@ant-design/icons'
 import type { TableColumnProps } from 'antd'
 import styles from './index.module.scss'
 import goBack from '@/assets/icons/go_back.svg'
 import DefaultIcon from '@/assets/linyaps.svg'
 
 import { getAppDetail, getSearchAppVersionList } from '@/apis/apps'
-import { runApp } from '@/apis/invoke'
+import { createDesktopShortcut, runApp } from '@/apis/invoke'
 import { useInstalledAppsStore } from '@/stores/installedApps'
 import { useInstallQueueStore } from '@/stores/installQueue'
 import { useGlobalStore } from '@/stores/global'
@@ -31,6 +31,7 @@ const AppDetail = () => {
   const [screenshotList, setScreenshotList] = useState<API.APP.AppScreenshot[]>([])
   const [loading, setLoading] = useState(false)
   const [uninstallingVersion, setUninstallingVersion] = useState<string | null>(null)
+  const [creatingShortcut, setCreatingShortcut] = useState(false)
 
   const installedApps = useInstalledAppsStore((state) => state.installedApps)
   const arch = useGlobalStore((state) => state.arch)
@@ -243,6 +244,28 @@ const AppDetail = () => {
     }
   }
 
+  const handleCreateDesktopShortcut = async() => {
+    if (!currentApp?.appId) {
+      message.error('应用ID不存在')
+      return
+    }
+
+    setCreatingShortcut(true)
+    try {
+      const resultMessage = await createDesktopShortcut(currentApp.appId)
+      message.success(resultMessage || '桌面快捷方式创建成功')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (errorMessage.includes('已存在') || errorMessage.includes('不会覆盖')) {
+        message.warning(errorMessage)
+      } else {
+        message.error(`创建快捷方式失败: ${errorMessage}`)
+      }
+    } finally {
+      setCreatingShortcut(false)
+    }
+  }
+
   /**
    * 处理版本安装
    * 使用统一的安装队列
@@ -448,6 +471,18 @@ const AppDetail = () => {
                       {installProgress.status} ({installProgress.percentage}%)
                     </div>
                   </div>
+                )}
+                {hasInstalledVersion && (
+                  <Button
+                    type='link'
+                    icon={<LinkOutlined />}
+                    className={styles.shortcutButton}
+                    loading={creatingShortcut}
+                    disabled={creatingShortcut}
+                    onClick={handleCreateDesktopShortcut}
+                  >
+                    创建桌面快捷方式
+                  </Button>
                 )}
               </div>
             </div>
