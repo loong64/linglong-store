@@ -5,12 +5,11 @@
  */
 
 import styles from './index.module.scss'
-import { Outlet } from 'react-router-dom'
-import { Suspense, useEffect } from 'react'
+import { useEffect } from 'react'
 import Titlebar from './titlebar'
 import Sidebar from './sidebar'
 import LaunchPage from './launchPage'
-import Loading from '../components/Loading'
+import KeepAliveOutlet from '@/components/KeepAliveOutlet'
 
 import { useGlobalStore } from '@/stores/global'
 import { useUpdatesStore } from '@/stores/updates'
@@ -104,9 +103,7 @@ const AppLayout = () => {
           <Sidebar className={styles.sider} />
           {/* 主内容区域，使用 Suspense 处理异步加载 */}
           <div className={styles.content}>
-            <Suspense fallback={<Loading />}>
-              <Outlet />
-            </Suspense>
+            <KeepAliveOutlet />
           </div>
         </div> : <LaunchPage />
       }
