@@ -8,6 +8,7 @@
 
 use log::{error, info, warn};
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 use crate::services::ll_cli_command;
@@ -251,7 +252,7 @@ pub async fn run_linglong_app(app_id: String) -> Result<String, String> {
 /// 行为说明：
 /// - 仅允许已安装应用创建快捷方式
 /// - 从 `ll-cli content <app_id>` 输出中解析 `.desktop` 源文件
-/// - 复制到 `~/.local/share/applications`
+/// - 复制到 `~/Desktop`
 /// - 目标同名文件存在时不覆盖，直接返回提示
 pub async fn create_desktop_shortcut(app_id: String) -> Result<String, String> {
     info!("[Shortcut] Creating desktop shortcut for app: {}", app_id);
@@ -288,7 +289,7 @@ pub async fn create_desktop_shortcut(app_id: String) -> Result<String, String> {
         .ok_or_else(|| format!("desktop 文件名无效: {}", desktop_source.display()))?;
 
     let home_dir = std::env::var("HOME").map_err(|_| "无法获取 HOME 目录".to_string())?;
-    let target_dir = PathBuf::from(home_dir).join(".local/share/applications");
+    let target_dir = PathBuf::from(home_dir).join("Desktop");
 
     fs::create_dir_all(&target_dir)
         .map_err(|e| format!("创建目标目录失败 {}: {}", target_dir.display(), e))?;
@@ -305,6 +306,14 @@ pub async fn create_desktop_shortcut(app_id: String) -> Result<String, String> {
         format!(
             "复制 desktop 文件失败: {} -> {} ({})",
             desktop_source.display(),
+            target_path.display(),
+            e
+        )
+    })?;
+
+    fs::set_permissions(&target_path, fs::Permissions::from_mode(0o755)).map_err(|e| {
+        format!(
+            "设置 desktop 文件权限失败: {} ({})",
             target_path.display(),
             e
         )
