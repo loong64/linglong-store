@@ -69,7 +69,7 @@ const SearchList = ()=>{
     if (loading || pageNo >= totalPages) {
       return
     }
-    void getSearchKeyAppList({ pageNo: pageNo + 1 })
+    getSearchKeyAppList({ pageNo: pageNo + 1 })
   }, [loading, pageNo, totalPages, getSearchKeyAppList])
 
   // 初始化获取数据
@@ -83,7 +83,7 @@ const SearchList = ()=>{
 
     setPageNo(1)
     setTotalPages(1)
-    void getSearchKeyAppList({ pageNo: 1, init: true })
+    getSearchKeyAppList({ pageNo: 1, init: true })
   }, [keyword, getSearchKeyAppList])
 
   useAutoLoadWhenNotScrollable({

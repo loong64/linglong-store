@@ -93,7 +93,7 @@ const AllApps = () => {
     if (loading || pageNo >= totalPages) {
       return
     }
-    void getAllAppList({ categoryId: activeCategory, pageNo: pageNo + 1 })
+    getAllAppList({ categoryId: activeCategory, pageNo: pageNo + 1 })
   }, [loading, pageNo, totalPages, activeCategory, getAllAppList])
 
   const handleCategoryChange = (categoryId: string) => {
@@ -107,7 +107,7 @@ const AllApps = () => {
 
     setActiveCategory(categoryId)
     setPageNo(1)
-    void getAllAppList({ categoryId, pageNo: 1, init: true })
+    getAllAppList({ categoryId, pageNo: 1, init: true })
     setTabOpen(true)
   }
 
@@ -120,7 +120,7 @@ const AllApps = () => {
   // 初始化获取数据
   useEffect(() => {
     getCategoryList()
-    void getAllAppList({ pageNo: 1, init: true })
+    getAllAppList({ pageNo: 1, init: true })
   }, [getAllAppList])
 
   // 监听窗口 resize 事件，调整分类栏高度

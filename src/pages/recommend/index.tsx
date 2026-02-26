@@ -80,7 +80,7 @@ const Recommend = () => {
     if (loading || pageNo >= totalPages) {
       return
     }
-    void getWelcomeAppListNext({ pageNo: pageNo + 1 })
+    getWelcomeAppListNext({ pageNo: pageNo + 1 })
   }, [loading, pageNo, totalPages, getWelcomeAppListNext])
 
   useEffect(() => {

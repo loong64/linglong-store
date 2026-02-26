@@ -95,7 +95,7 @@ const Ranking = () => {
     if (loading || pageNo >= totalPages) {
       return
     }
-    void getRankAppList({ pageNo: pageNo + 1, tabKey: activeTab })
+    getRankAppList({ pageNo: pageNo + 1, tabKey: activeTab })
   }, [loading, pageNo, totalPages, activeTab, getRankAppList])
   // tab切换
   const handleTabChange = (key: string) => {
@@ -103,12 +103,12 @@ const Ranking = () => {
     setPageNo(1)
     setTotalPages(1)
     setRankList([])
-    void getRankAppList({ pageNo: 1, init: true, tabKey: key })
+    getRankAppList({ pageNo: 1, init: true, tabKey: key })
     console.info(key, 'key======')
   }
   // 初始化获取数据
   useEffect(() => {
-    void getRankAppList({ pageNo: 1, init: true, tabKey: activeTab })
+    getRankAppList({ pageNo: 1, init: true, tabKey: activeTab })
   }, [getRankAppList])
 
   useAutoLoadWhenNotScrollable({

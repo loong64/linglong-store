@@ -97,21 +97,21 @@ const OfficeApps = () => {
     if (loading || pageNo >= totalPages) {
       return
     }
-    void getAllAppList({ pageNo: pageNo + 1 })
+    getAllAppList({ pageNo: pageNo + 1 })
   }, [loading, pageNo, totalPages, getAllAppList])
 
   // 初始化获取数据
   useEffect(() => {
     setPageNo(1)
     setTotalPages(1)
-    void getAllAppList({ pageNo: 1, init: true })
+    getAllAppList({ pageNo: 1, init: true })
     getHeaderRecommendAppList() // 只发一次请求
   }, [code, getAllAppList])
   // 监听filter和sortType参数变化
   useEffect(() => {
     setPageNo(1)
     setTotalPages(1)
-    void getAllAppList({ pageNo: 1, init: true })
+    getAllAppList({ pageNo: 1, init: true })
   }, [filter, sortType, getAllAppList])
 
   useAutoLoadWhenNotScrollable({
