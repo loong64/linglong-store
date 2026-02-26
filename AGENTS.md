@@ -251,6 +251,7 @@ src-tauri/
   - 在 release 中保持低噪声；仅在需要时写入文件（路径走 Tauri 约定目录）。
 - 卸载逻辑统一：使用 `useAppUninstall`（封装确认弹窗、调用卸载 API、`removeApp`、剩余版本判断、`checkUpdates(true)` 刷新红点/更新列表，支持 `skipConfirm` 等配置），页面/组件只调用一个 `uninstall(appInfo, options)`，不再各自写弹窗或重复触发更新。
 - 菜单红点统一：侧边栏红点通过 `useMenuBadges` 集中定义 `menuPath → count` 映射，`Sidebar` 只渲染 Badge；新增红点只需在该 hook 增加 selector。
+- 列表分页统一：带无限滚动的应用列表页统一复用 `useAutoLoadWhenNotScrollable`，同时处理“滚动触底加载”和“内容未撑满容器时自动补页（含窗口尺寸变化）”；页面仅维护 `loading/hasMore/onLoadMore`，避免各页重复监听滚动并出现无滚动无法翻页问题。
 
 ## IPC 合同（TS ↔ Rust）
 

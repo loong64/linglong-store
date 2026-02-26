@@ -2,11 +2,12 @@ import styles from './index.module.scss'
 import { Button } from 'antd'
 import { DoubleUp, DoubleDown } from '@icon-park/react'
 import ApplicationCard from '@/components/ApplicationCard'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { getDisCategoryList, getSearchAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import { generateEmptyCards, generateEmptyCategories } from './utils'
 import { OperateType } from '@/constants/applicationCard'
+import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
 
 const defaultPageSize = 30 // 每页显示数量
 const defaultCategorySize = 22 // 默认分类数量
@@ -46,7 +47,7 @@ const AllApps = () => {
   }
 
   // 获取应用列表
-  const getAllAppList = ({ categoryId = '', pageNo = 1, init = false }) => {
+  const getAllAppList = useCallback(async({ categoryId = '', pageNo = 1, init = false }: { categoryId?: string, pageNo?: number, init?: boolean }) => {
     setLoading(true)
 
     if (init) {
@@ -54,38 +55,46 @@ const AllApps = () => {
       setAllAppList(generateEmptyCards(defaultPageSize))
     }
     try {
-      getSearchAppList({
+      const res = await getSearchAppList({
         categoryId,
         repoName,
         arch,
         pageNo,
         pageSize: defaultPageSize,
-      }).then(res => {
-        const newRecords = res.data.records || []
-
-        if (init) {
-          // 初始化时直接替换
-          setAllAppList(newRecords)
-        } else {
-          // 追加新数据时，过滤掉空卡片后再追加
-          setAllAppList(prev => {
-            const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-            return [...filteredPrev, ...newRecords]
-          })
-        }
-
-        setTotalPages(res.data.pages || 1)
-        setLoading(false)
       })
+
+      const newRecords = res.data.records || []
+
+      if (init) {
+        // 初始化时直接替换
+        setAllAppList(newRecords)
+      } else {
+        // 追加新数据时，过滤掉空卡片后再追加
+        setAllAppList(prev => {
+          const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
+          return [...filteredPrev, ...newRecords]
+        })
+      }
+
+      setTotalPages(res.data.pages || 1)
+      setPageNo(pageNo)
     } catch (error) {
       console.error('获取应用列表失败:', error)
       // 错误时移除空卡片
       if (init) {
         setAllAppList([])
       }
+    } finally {
       setLoading(false)
     }
-  }
+  }, [repoName, arch])
+
+  const loadNextPage = useCallback(() => {
+    if (loading || pageNo >= totalPages) {
+      return
+    }
+    void getAllAppList({ categoryId: activeCategory, pageNo: pageNo + 1 })
+  }, [loading, pageNo, totalPages, activeCategory, getAllAppList])
 
   const handleCategoryChange = (categoryId: string) => {
     // 立即滚动到顶部（异步以确保 DOM 已更新）
@@ -98,7 +107,7 @@ const AllApps = () => {
 
     setActiveCategory(categoryId)
     setPageNo(1)
-    getAllAppList({ categoryId, init: true })
+    void getAllAppList({ categoryId, pageNo: 1, init: true })
     setTabOpen(true)
   }
 
@@ -111,8 +120,8 @@ const AllApps = () => {
   // 初始化获取数据
   useEffect(() => {
     getCategoryList()
-    getAllAppList({ init: true })
-  }, [])
+    void getAllAppList({ pageNo: 1, init: true })
+  }, [getAllAppList])
 
   // 监听窗口 resize 事件，调整分类栏高度
   const [tabHeight, setTabHeight] = useState(0)
@@ -139,29 +148,18 @@ const AllApps = () => {
     }
   }, [categoryList, activeCategory])
 
-  // 监听滚动
+  // 监听滚动（用于控制分类栏展开/折叠）
   useEffect(() => {
     const handleScroll = () => {
-      if (loading) {
-        return
-      }
       const listElement = listRef.current
       if (listElement) {
-        const { scrollTop, scrollHeight, clientHeight } = listElement
+        const { scrollTop } = listElement
 
         // 滚动到顶部时打开标签栏，否则关闭
         if (scrollTop <= 10) {
           setTabOpen(true)
         } else {
           setTabOpen(false)
-        }
-
-        // 滚动到底部时加载更多
-        if (scrollTop + clientHeight >= scrollHeight - 100) {
-          if (pageNo < totalPages) {
-            setPageNo(pageNo + 1)
-            getAllAppList({ categoryId: activeCategory, pageNo: pageNo + 1 })
-          }
         }
       }
     }
@@ -176,7 +174,15 @@ const AllApps = () => {
         listElement.removeEventListener('scroll', handleScroll)
       }
     }
-  }, [activeCategory, pageNo, totalPages, loading])
+  }, [])
+
+  useAutoLoadWhenNotScrollable({
+    containerRef: listRef,
+    loading,
+    hasMore: pageNo < totalPages,
+    onLoadMore: loadNextPage,
+    deps: [allAppList, activeCategory, pageNo, totalPages],
+  })
 
   return <div className={styles.allAppsPage} ref={listRef} >
     <div className={styles.tabBtn} style={{ height: tabOpen ? 'auto' : '3.6em' }}>

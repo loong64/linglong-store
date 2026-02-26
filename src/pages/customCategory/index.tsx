@@ -1,12 +1,13 @@
 import styles from './index.module.scss'
 import ApplicationCard from '@/components/ApplicationCard'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { getAppListByCategoryIds, getRecommendAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import { generateEmptyCards } from './utils'
 import { OperateType } from '@/constants/applicationCard'
 import { Select, Checkbox, type CheckboxProps } from 'antd'
 import { useParams } from 'react-router-dom'
+import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
 const defaultPageSize = 30 // 每页显示数量
 type AppInfo = API.APP.AppMainDto
 const OfficeApps = () => {
@@ -48,7 +49,7 @@ const OfficeApps = () => {
   }
 
   // 获取应用列表
-  const getAllAppList = ({ pageNo = 1, init = false }) => {
+  const getAllAppList = useCallback(async({ pageNo = 1, init = false }: { pageNo?: number, init?: boolean }) => {
     setLoading(true)
 
     if (init) {
@@ -56,7 +57,7 @@ const OfficeApps = () => {
       setAllAppList(generateEmptyCards(defaultPageSize))
     }
     try {
-      getAppListByCategoryIds({
+      const res = await getAppListByCategoryIds({
         menuCode: code,
         repoName,
         arch,
@@ -64,72 +65,62 @@ const OfficeApps = () => {
         sortType,
         pageNo,
         pageSize: defaultPageSize,
-      }).then(res => {
-        const newRecords = res.data.records || []
-
-        if (init) {
-          // 初始化时直接替换
-          setAllAppList(newRecords)
-        } else {
-          // 追加新数据时，过滤掉空卡片后再追加
-          setAllAppList(prev => {
-            const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-            return [...filteredPrev, ...newRecords]
-          })
-        }
-
-        setTotalPages(res.data.pages || 1)
-        setLoading(false)
       })
+
+      const newRecords = res.data.records || []
+
+      if (init) {
+        // 初始化时直接替换
+        setAllAppList(newRecords)
+      } else {
+        // 追加新数据时，过滤掉空卡片后再追加
+        setAllAppList(prev => {
+          const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
+          return [...filteredPrev, ...newRecords]
+        })
+      }
+
+      setTotalPages(res.data.pages || 1)
+      setPageNo(pageNo)
     } catch (error) {
       console.error('获取应用列表失败:', error)
       // 错误时移除空卡片
       if (init) {
         setAllAppList([])
       }
+    } finally {
       setLoading(false)
     }
-  }
+  }, [code, repoName, arch, filter, sortType])
+
+  const loadNextPage = useCallback(() => {
+    if (loading || pageNo >= totalPages) {
+      return
+    }
+    void getAllAppList({ pageNo: pageNo + 1 })
+  }, [loading, pageNo, totalPages, getAllAppList])
 
   // 初始化获取数据
   useEffect(() => {
-    getAllAppList({ init: true })
+    setPageNo(1)
+    setTotalPages(1)
+    void getAllAppList({ pageNo: 1, init: true })
     getHeaderRecommendAppList() // 只发一次请求
-  }, [code])
+  }, [code, getAllAppList])
   // 监听filter和sortType参数变化
   useEffect(() => {
-    getAllAppList({ init: true })
-  }, [filter, sortType])
-  // 监听滚动
-  useEffect(() => {
-    const handleScroll = () => {
-      if (loading) {
-        return
-      }
-      const listElement = listRef.current
-      if (listElement) {
-        const { scrollTop, scrollHeight, clientHeight } = listElement
-        // 滚动到底部时加载更多
-        if (scrollTop + clientHeight >= scrollHeight - 100) {
-          if (pageNo < totalPages) {
-            setPageNo(pageNo + 1)
-            getAllAppList({ pageNo: pageNo + 1 })
-          }
-        }
-      }
-    }
+    setPageNo(1)
+    setTotalPages(1)
+    void getAllAppList({ pageNo: 1, init: true })
+  }, [filter, sortType, getAllAppList])
 
-    const listElement = listRef.current
-    if (listElement) {
-      listElement.addEventListener('scroll', handleScroll)
-    }
-
-    return () => {
-      if (listElement) {
-        listElement.removeEventListener('scroll', handleScroll)
-      }
-    }
-  }, [activeCategory, pageNo, totalPages, loading])
+  useAutoLoadWhenNotScrollable({
+    containerRef: listRef,
+    loading,
+    hasMore: pageNo < totalPages,
+    onLoadMore: loadNextPage,
+    deps: [allAppList, pageNo, totalPages, activeCategory],
+  })
 
   return <div className={styles.officeAppsPage} ref={listRef} >
     <div className={styles.search} >

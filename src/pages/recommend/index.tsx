@@ -5,6 +5,7 @@ import { getWelcomeCarouselList, getWelcomeAppList } from '@/apis/apps/index'
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { useGlobalStore } from '@/stores/global'
 import { generateEmptyCards } from './utils'
+import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
 
 type AppInfo = API.APP.AppMainDto
 const defaultPageSize = 10 // 每页显示数量
@@ -46,62 +47,53 @@ const Recommend = () => {
     }
   }, [repoName, arch])
   // 获取推荐数据函数
-  const getWelcomeAppListNext = ({ pageNo = 1 })=>{
+  const getWelcomeAppListNext = useCallback(async({ pageNo = 1 }: { pageNo?: number }) => {
+    if (loading) {
+      return
+    }
     setLoading(true)
     try {
-      getWelcomeAppList({
+      const res = await getWelcomeAppList({
         repoName,
         arch,
         pageNo,
         pageSize: defaultPageSize,
-      }).then(res => {
-        const newRecords = res.data.records || []
-        // 追加新数据时，过滤掉空卡片后再追加
-        setRecommendList(prev => {
-          const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-          return [...filteredPrev, ...newRecords]
-        })
-
-        setTotalPages(res.data.pages || 1)
-        setLoading(false)
       })
+
+      const newRecords = res.data.records || []
+      // 追加新数据时，过滤掉空卡片后再追加
+      setRecommendList(prev => {
+        const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
+        return [...filteredPrev, ...newRecords]
+      })
+
+      setTotalPages(res.data.pages || 1)
+      setPageNo(pageNo)
     } catch (error) {
       console.error('获取应用列表失败:', error)
+    } finally {
       setLoading(false)
     }
-  }
+  }, [repoName, arch, loading])
+
+  const loadNextPage = useCallback(() => {
+    if (loading || pageNo >= totalPages) {
+      return
+    }
+    void getWelcomeAppListNext({ pageNo: pageNo + 1 })
+  }, [loading, pageNo, totalPages, getWelcomeAppListNext])
+
   useEffect(() => {
     fetchData()
   }, [fetchData])
-  // 滚动刷新推荐
-  useEffect(() => {
-    const handleScroll = () => {
-      if (loading) {
-        return
-      }
-      const listElement = listRef.current
-      if (listElement) {
-        const { scrollTop, scrollHeight, clientHeight } = listElement
-        if (scrollTop + clientHeight >= scrollHeight - 100) {
-          if (pageNo < totalPages) {
-            setPageNo(pageNo + 1)
-            getWelcomeAppListNext({ pageNo: pageNo + 1 })
-          }
-        }
-      }
-    }
 
-    const listElement = listRef.current
-    if (listElement) {
-      listElement.addEventListener('scroll', handleScroll)
-    }
-
-    return () => {
-      if (listElement) {
-        listElement.removeEventListener('scroll', handleScroll)
-      }
-    }
-  }, [pageNo, totalPages, loading])
+  useAutoLoadWhenNotScrollable({
+    containerRef: listRef,
+    loading,
+    hasMore: pageNo < totalPages,
+    onLoadMore: loadNextPage,
+    deps: [recommendList, pageNo, totalPages],
+  })
 
   return (
     <div className={styles.recommend} ref={listRef} >

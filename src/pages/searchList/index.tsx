@@ -2,9 +2,10 @@ import styles from './index.module.scss'
 import ApplicationCard from '@/components/ApplicationCard'
 import { useGlobalStore, useSearchStore } from '@/stores/global'
 import { getSearchAppList } from '@/apis/apps/index'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { generateEmptyCards } from './utils'
 import { Empty } from 'antd'
+import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
 const defaultPageSize = 10 // 每页显示数量
 
 type AppInfo = API.APP.AppMainDto
@@ -19,82 +20,79 @@ const SearchList = ()=>{
   const listRef = useRef<HTMLDivElement>(null)
 
   // 获取应用列表
-  const getSearchKeyAppList = ({ pageNo = 1, init = false }) => {
+  const getSearchKeyAppList = useCallback(async({ pageNo = 1, init = false }: { pageNo?: number, init?: boolean }) => {
     if (!keyword) {
       return
     }
+
     setLoading(true)
     if (init) {
       // 初始化时先显示空卡片占位
       setSearchAppList(generateEmptyCards(defaultPageSize))
     }
     try {
-      getSearchAppList({
+      const res = await getSearchAppList({
         name: keyword,
         repoName,
         arch,
         pageNo,
         pageSize: defaultPageSize,
-      }).then(res => {
-        const newRecords = res.data.records || []
-
-        if (init) {
-          // 初始化时直接替换
-          setSearchAppList(newRecords)
-        } else {
-          // 追加新数据时，过滤掉空卡片后再追加
-          setSearchAppList(prev => {
-            const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-            return [...filteredPrev, ...newRecords]
-          })
-        }
-
-        setTotalPages(res.data.pages || 1)
-        setLoading(false)
       })
+
+      const newRecords = res.data.records || []
+
+      if (init) {
+        // 初始化时直接替换
+        setSearchAppList(newRecords)
+      } else {
+        // 追加新数据时，过滤掉空卡片后再追加
+        setSearchAppList(prev => {
+          const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
+          return [...filteredPrev, ...newRecords]
+        })
+      }
+
+      setTotalPages(res.data.pages || 1)
+      setPageNo(pageNo)
     } catch (error) {
       console.error('获取应用列表失败:', error)
       // 错误时移除空卡片
       if (init) {
         setSearchAppList([])
       }
+    } finally {
       setLoading(false)
     }
-  }
+  }, [keyword, repoName, arch])
+
+  const loadNextPage = useCallback(() => {
+    if (loading || pageNo >= totalPages) {
+      return
+    }
+    void getSearchKeyAppList({ pageNo: pageNo + 1 })
+  }, [loading, pageNo, totalPages, getSearchKeyAppList])
 
   // 初始化获取数据
   useEffect(() => {
-    getSearchKeyAppList({ init: true })
-  }, [keyword])
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (loading) {
-        return
-      }
-      const listElement = listRef.current
-      if (listElement) {
-        const { scrollTop, scrollHeight, clientHeight } = listElement
-        if (scrollTop + clientHeight >= scrollHeight - 100) {
-          if (pageNo < totalPages) {
-            setPageNo(pageNo + 1)
-            getSearchKeyAppList({ pageNo: pageNo + 1 })
-          }
-        }
-      }
+    if (!keyword) {
+      setSearchAppList([])
+      setPageNo(1)
+      setTotalPages(1)
+      return
     }
 
-    const listElement = listRef.current
-    if (listElement) {
-      listElement.addEventListener('scroll', handleScroll)
-    }
+    setPageNo(1)
+    setTotalPages(1)
+    void getSearchKeyAppList({ pageNo: 1, init: true })
+  }, [keyword, getSearchKeyAppList])
 
-    return () => {
-      if (listElement) {
-        listElement.removeEventListener('scroll', handleScroll)
-      }
-    }
-  }, [keyword, pageNo, totalPages, loading])
+  useAutoLoadWhenNotScrollable({
+    containerRef: listRef,
+    loading,
+    hasMore: pageNo < totalPages,
+    onLoadMore: loadNextPage,
+    deps: [searchAppList, keyword, pageNo, totalPages],
+  })
 
   return <div className={styles.searchPage} ref={listRef}>
     <p className={styles.SearchResult}>搜索结果：</p>

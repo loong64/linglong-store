@@ -3,8 +3,9 @@ import ApplicationCard from '@/components/ApplicationCard'
 import { getNewAppList, getInstallAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import styles from './index.module.scss'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { generateEmptyCards } from './utils'
+import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
 
 const defaultPageSize = 10 // 每页显示数量
 
@@ -20,63 +21,63 @@ const Ranking = () => {
   const [totalPages, setTotalPages] = useState<number>(1)
 
   // 获取应用列表函数
-  const getRankAppList = ({ pageNo = 1, init = false })=>{
+  const getRankAppList = useCallback(async({ pageNo = 1, init = false, tabKey }: { pageNo?: number, init?: boolean, tabKey?: string })=>{
+    const currentTab = tabKey || '101'
+
     if (init) {
       // 初始化时先显示空卡片占位
       setRankList(generateEmptyCards(defaultPageSize))
     }
     setLoading(true)
     try {
-      switch (activeTab) {
+      switch (currentTab) {
       case '102':
-        getNewAppList({
+      {
+        const res = await getNewAppList({
           repoName,
           arch,
           pageNo,
           pageSize: defaultPageSize,
-        }).then(res => {
-          const newRecords = res.data.records || []
-          // 追加新数据时，过滤掉空卡片后再追加
-          if (init) {
-          // 初始化时直接替换
-            setRankList(newRecords)
-          } else {
-          // 追加新数据时，过滤掉空卡片后再追加
-            setRankList(prev => {
-              const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-              return [...filteredPrev, ...newRecords]
-            })
-          }
-
-          setTotalPages(res.data.pages || 1)
-          setLoading(false)
         })
+
+        const newRecords = res.data.records || []
+        if (init) {
+          setRankList(newRecords)
+        } else {
+          setRankList(prev => {
+            const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
+            return [...filteredPrev, ...newRecords]
+          })
+        }
+
+        setTotalPages(res.data.pages || 1)
+        setPageNo(pageNo)
         break
+      }
 
       default:
-        getInstallAppList({
+      {
+        const res = await getInstallAppList({
           repoName,
           arch,
           pageNo,
           pageSize: defaultPageSize,
-        }).then(res => {
-          const newRecords = res.data.records || []
-          // 追加新数据时，过滤掉空卡片后再追加
-          if (init) {
-          // 初始化时直接替换
-            setRankList(newRecords)
-          } else {
-          // 追加新数据时，过滤掉空卡片后再追加
-            setRankList(prev => {
-              const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-              return [...filteredPrev, ...newRecords]
-            })
-          }
-
-          setTotalPages(res.data.pages || 1)
-          setLoading(false)
         })
+
+        const newRecords = res.data.records || []
+        if (init) {
+          setRankList(newRecords)
+        } else {
+          setRankList(prev => {
+            const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
+            return [...filteredPrev, ...newRecords]
+          })
+        }
+
+        setTotalPages(res.data.pages || 1)
+        setPageNo(pageNo)
         break
+      }
       }
 
     } catch (error) {
@@ -85,50 +86,38 @@ const Ranking = () => {
       if (init) {
         setRankList([])
       }
+    } finally {
       setLoading(false)
     }
-  }
+  }, [repoName, arch])
+
+  const loadNextPage = useCallback(() => {
+    if (loading || pageNo >= totalPages) {
+      return
+    }
+    void getRankAppList({ pageNo: pageNo + 1, tabKey: activeTab })
+  }, [loading, pageNo, totalPages, activeTab, getRankAppList])
   // tab切换
   const handleTabChange = (key: string) => {
     setActiveTab(key)
     setPageNo(1)
+    setTotalPages(1)
     setRankList([])
-    getRankAppList({ init: true })
+    void getRankAppList({ pageNo: 1, init: true, tabKey: key })
     console.info(key, 'key======')
   }
   // 初始化获取数据
   useEffect(() => {
-    getRankAppList({ init: true })
-  }, [])
-  // 滚动监听
-  useEffect(() => {
-    const handleScroll = () => {
-      if (loading) {
-        return
-      }
-      const listElement = listRef.current
-      if (listElement) {
-        const { scrollTop, scrollHeight, clientHeight } = listElement
-        if (scrollTop + clientHeight >= scrollHeight - 100) {
-          if (pageNo < totalPages) {
-            setPageNo(pageNo + 1)
-            getRankAppList({ pageNo: pageNo + 1 })
-          }
-        }
-      }
-    }
+    void getRankAppList({ pageNo: 1, init: true, tabKey: activeTab })
+  }, [getRankAppList])
 
-    const listElement = listRef.current
-    if (listElement) {
-      listElement.addEventListener('scroll', handleScroll)
-    }
-
-    return () => {
-      if (listElement) {
-        listElement.removeEventListener('scroll', handleScroll)
-      }
-    }
-  }, [activeTab, pageNo, totalPages, loading])
+  useAutoLoadWhenNotScrollable({
+    containerRef: listRef,
+    loading,
+    hasMore: pageNo < totalPages,
+    onLoadMore: loadNextPage,
+    deps: [RankList, activeTab, pageNo, totalPages],
+  })
 
   return <div className={styles.rankContainer} ref={listRef}>
     <div className={styles.rankHeader}>
