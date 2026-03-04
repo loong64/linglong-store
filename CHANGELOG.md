@@ -19,9 +19,12 @@
   - 页面从不可见切回前台时立即补刷新
 - Rust 进程查询从 N+1 外部命令优化为固定 2 次（`ll-cli ps` + `ll-cli list --json --type=all`），大幅降低查询延迟
 - `rowKey` 改为稳定的 `containerId`，消除索引导致的多余重渲染
+- `ApplicationCard` 从组件内直接订阅 `installedApps / updates / installQueue` 调整为页面级统一建索引并下发布尔状态，减少切页、滚动和安装过程中的卡片级重渲染
+- 新增通用 `ApplicationCardSkeleton` 骨架卡片组件，`customCategory`、`allApps`、`searchList`、`ranking` 首屏改为骨架屏加载，分页追加继续使用底部“加载中...”
 
 ### 技术细节
 - 新增 `src/hooks/useLinglongProcesses.ts`（刷新、退避、行级操作状态统一管理）
+- 新增 `src/hooks/useApplicationCardModel.ts`，统一卡片安装状态索引与交互动作
 - 新增 `src/pages/myApps/components/linglongProcess/ProcessToolbar.tsx`
 - 新增 `src/pages/myApps/components/linglongProcess/ProcessTable.tsx`
 - `src/types/api/invoke.d.ts` 新增 `RunningApp` 类型，`id` 字段作为稳定唯一键
@@ -42,5 +45,3 @@
 - Rust 新增 `create_desktop_shortcut` 命令
 - 前端 `src/apis/invoke/index.ts` 新增 `createDesktopShortcut` API 封装
 - 详情页组件新增快捷方式按钮及相关状态管理
-
-

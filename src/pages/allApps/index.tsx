@@ -2,12 +2,14 @@ import styles from './index.module.scss'
 import { Button } from 'antd'
 import { DoubleUp, DoubleDown } from '@icon-park/react'
 import ApplicationCard from '@/components/ApplicationCard'
+import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { getDisCategoryList, getSearchAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
-import { generateEmptyCards, generateEmptyCategories } from './utils'
+import { generateEmptyCategories } from './utils'
 import { OperateType } from '@/constants/applicationCard'
 import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
+import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 
 const defaultPageSize = 30 // 每页显示数量
 const defaultCategorySize = 22 // 默认分类数量
@@ -19,9 +21,11 @@ type AppInfo = API.APP.AppMainDto
 const AllApps = () => {
   const arch = useGlobalStore((state) => state.arch)
   const repoName = useGlobalStore((state) => state.repoName)
+  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [pageNo, setPageNo] = useState<number>(1)
   const [loading, setLoading] = useState<boolean>(false)
+  const [initialLoading, setInitialLoading] = useState<boolean>(true)
   const [totalPages, setTotalPages] = useState<number>(1)
   const [categoryList, setCategoryList] = useState<Category[]>([])
   const [allAppList, setAllAppList] = useState<AppInfo[]>([])
@@ -51,8 +55,8 @@ const AllApps = () => {
     setLoading(true)
 
     if (init) {
-      // 初始化时先显示空卡片占位
-      setAllAppList(generateEmptyCards(defaultPageSize))
+      setInitialLoading(true)
+      setAllAppList([])
     }
     try {
       const res = await getSearchAppList({
@@ -85,6 +89,9 @@ const AllApps = () => {
         setAllAppList([])
       }
     } finally {
+      if (init) {
+        setInitialLoading(false)
+      }
       setLoading(false)
     }
   }, [repoName, arch])
@@ -203,19 +210,31 @@ const AllApps = () => {
       <div className={styles.tabShrink} onClick={handleTabToggle}>{tabOpen ? <DoubleUp theme="outline" size="16" fill="#333"/> : <DoubleDown theme="outline" size="16" fill="#333"/>}</div>
     </div>
     <div className={styles.applicationList} style={{ marginTop: `${tabHeight}px` }}>
-      {
-        allAppList.map((item, index) => {
-          return (
-            <ApplicationCard
-              key={`${item.appId}_${index}`}
-              appInfo={item}
-              operateId={OperateType.INSTALL}
-            />
-          )
-        })
-      }
-      {loading && <div className={styles.loadingTip}>加载中...</div>}
-      {totalPages <= pageNo && allAppList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
+      {initialLoading ? (
+        <ApplicationCardSkeleton count={defaultPageSize} />
+      ) : (
+        <>
+          {
+            allAppList.map((item, index) => {
+              const cardState = getCardState(item)
+              return (
+                <ApplicationCard
+                  key={`${item.appId}_${index}`}
+                  appInfo={item}
+                  operateId={OperateType.INSTALL}
+                  isInstalled={cardState.isInstalled}
+                  hasUpdate={cardState.hasUpdate}
+                  isInstalling={cardState.isInstalling}
+                  onInstall={handleInstall}
+                  onUninstall={uninstall}
+                />
+              )
+            })
+          }
+          {loading && <div className={styles.loadingTip}>加载中...</div>}
+          {totalPages <= pageNo && allAppList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
+        </>
+      )}
     </div>
   </div>
 }

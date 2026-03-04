@@ -32,7 +32,7 @@ type BasicAppInfo = {
  * 统一的卸载逻辑
  */
 export const useAppUninstall = () => {
-  const { removeApp } = useInstalledAppsStore()
+  const removeApp = useInstalledAppsStore(state => state.removeApp)
   const checkUpdates = useUpdatesStore(state => state.checkUpdates)
 
   const performUninstall = useCallback(

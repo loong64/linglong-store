@@ -1,16 +1,19 @@
 import styles from './index.module.scss'
 import ApplicationCard from '@/components/ApplicationCard'
+import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { getAppListByCategoryIds, getRecommendAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import { OperateType } from '@/constants/applicationCard'
-import { Select, Checkbox, Spin, Empty, type CheckboxProps } from 'antd'
+import { Select, Checkbox, Empty, type CheckboxProps } from 'antd'
 import { useParams } from 'react-router-dom'
 import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
+import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 const defaultPageSize = 30 // 每页显示数量
 type AppInfo = API.APP.AppMainDto
 const OfficeApps = () => {
   const { arch, repoName, customMenuCategory } = useGlobalStore()
+  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
   const [pageNo, setPageNo] = useState<number>(1)
   const [loading, setLoading] = useState<boolean>(false)
   const [initialLoading, setInitialLoading] = useState<boolean>(true)
@@ -176,12 +179,18 @@ const OfficeApps = () => {
     <div className={styles.recommendApplicationList} style={{ marginTop: !initialLoading && recommendAppList.length > 0 ? '3rem' : 0 }}>
       {
         !initialLoading && recommendAppList.map((item, index) => {
+          const cardState = getCardState(item)
           return index < 3 && (
             <ApplicationCard
               type="recommend"
               key={`${item.appId}_${index}`}
               appInfo={item}
               operateId={OperateType.INSTALL}
+              isInstalled={cardState.isInstalled}
+              hasUpdate={cardState.hasUpdate}
+              isInstalling={cardState.isInstalling}
+              onInstall={handleInstall}
+              onUninstall={uninstall}
             />
           )
         })
@@ -189,18 +198,22 @@ const OfficeApps = () => {
     </div>
     <div className={styles.applicationList}>
       {initialLoading ? (
-        <div className={styles.initialLoading}>
-          <Spin size="large" tip="加载中..." />
-        </div>
+        <ApplicationCardSkeleton count={defaultPageSize} />
       ) : allAppList.length > 0 ? (
         <>
           {
             allAppList.map((item, index) => {
+              const cardState = getCardState(item)
               return (
                 <ApplicationCard
                   key={`${item.appId}_${index}`}
                   appInfo={item}
                   operateId={OperateType.INSTALL}
+                  isInstalled={cardState.isInstalled}
+                  hasUpdate={cardState.hasUpdate}
+                  isInstalling={cardState.isInstalling}
+                  onInstall={handleInstall}
+                  onUninstall={uninstall}
                 />
               )
             })

@@ -1,11 +1,12 @@
 import { Tabs } from 'antd'
 import ApplicationCard from '@/components/ApplicationCard'
+import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import { getNewAppList, getInstallAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import styles from './index.module.scss'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { generateEmptyCards } from './utils'
 import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
+import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 
 const defaultPageSize = 10 // 每页显示数量
 
@@ -13,11 +14,13 @@ type AppInfo = API.APP.AppMainDto
 const Ranking = () => {
   const arch = useGlobalStore((state) => state.arch)
   const repoName = useGlobalStore((state) => state.repoName)
+  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
   const [activeTab, setActiveTab] = useState('101')
   const listRef = useRef<HTMLDivElement>(null)
   const [RankList, setRankList] = useState<AppInfo[]>([])
   const [pageNo, setPageNo] = useState<number>(1)
   const [loading, setLoading] = useState<boolean>(false)
+  const [initialLoading, setInitialLoading] = useState<boolean>(true)
   const [totalPages, setTotalPages] = useState<number>(1)
 
   // 获取应用列表函数
@@ -25,8 +28,8 @@ const Ranking = () => {
     const currentTab = tabKey || '101'
 
     if (init) {
-      // 初始化时先显示空卡片占位
-      setRankList(generateEmptyCards(defaultPageSize))
+      setInitialLoading(true)
+      setRankList([])
     }
     setLoading(true)
     try {
@@ -87,6 +90,9 @@ const Ranking = () => {
         setRankList([])
       }
     } finally {
+      if (init) {
+        setInitialLoading(false)
+      }
       setLoading(false)
     }
   }, [repoName, arch])
@@ -133,15 +139,29 @@ const Ranking = () => {
     <div className={styles.placeholder} />
     <main className={styles.appBox}>
       <div className={styles.appList}>
-        {RankList.map((item, index) => (
-          <ApplicationCard
-            key={`${item.appId}_${index}`}
-            appInfo={item}
-            operateId={1}
-          />
-        ))}
-        {loading && <div className={styles.loadingTip}>加载中...</div>}
-        {totalPages <= pageNo && RankList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
+        {initialLoading ? (
+          <ApplicationCardSkeleton count={defaultPageSize} />
+        ) : (
+          <>
+            {RankList.map((item, index) => {
+              const cardState = getCardState(item)
+              return (
+                <ApplicationCard
+                  key={`${item.appId}_${index}`}
+                  appInfo={item}
+                  operateId={1}
+                  isInstalled={cardState.isInstalled}
+                  hasUpdate={cardState.hasUpdate}
+                  isInstalling={cardState.isInstalling}
+                  onInstall={handleInstall}
+                  onUninstall={uninstall}
+                />
+              )
+            })}
+            {loading && <div className={styles.loadingTip}>加载中...</div>}
+            {totalPages <= pageNo && RankList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
+          </>
+        )}
       </div>
     </main>
 

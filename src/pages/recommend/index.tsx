@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { useGlobalStore } from '@/stores/global'
 import { generateEmptyCards } from './utils'
 import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
+import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 
 type AppInfo = API.APP.AppMainDto
 const defaultPageSize = 10 // 每页显示数量
@@ -13,6 +14,7 @@ const defaultPageSize = 10 // 每页显示数量
 const Recommend = () => {
   const arch = useGlobalStore((state) => state.arch)
   const repoName = useGlobalStore((state) => state.repoName)
+  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
 
   const [carouselList, setCarouselList] = useState<AppInfo[]>([])
   const [recommendList, setRecommendList] = useState<AppInfo[]>([])
@@ -109,13 +111,21 @@ const Recommend = () => {
         <div className={styles.appMain}>
           <p className={styles.name}>玲珑推荐</p>
           <div className={styles.appList}>
-            {recommendList.map((item, index) => (
-              <ApplicationCard
-                key={`${item.appId}_${index}`}
-                appInfo={item}
-                operateId={1}
-              />
-            ))}
+            {recommendList.map((item, index) => {
+              const cardState = getCardState(item)
+              return (
+                <ApplicationCard
+                  key={`${item.appId}_${index}`}
+                  appInfo={item}
+                  operateId={1}
+                  isInstalled={cardState.isInstalled}
+                  hasUpdate={cardState.hasUpdate}
+                  isInstalling={cardState.isInstalling}
+                  onInstall={handleInstall}
+                  onUninstall={uninstall}
+                />
+              )
+            })}
             {loading && <div className={styles.loadingTip}>加载中...</div>}
             {totalPages <= pageNo && recommendList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
           </div>
