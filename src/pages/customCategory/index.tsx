@@ -112,24 +112,24 @@ const OfficeApps = () => {
     if (loading || pageNo >= totalPages) {
       return
     }
-    void getAllAppList({
+    getAllAppList({
       pageNo: pageNo + 1,
       filterValue: filter,
       sortValue: sortType,
-    })
+    }).catch(() => undefined)
   }, [loading, pageNo, totalPages, getAllAppList, filter, sortType])
 
   // 初始化获取数据
   useEffect(() => {
     setPageNo(1)
     setTotalPages(1)
-    void getAllAppList({
+    getAllAppList({
       pageNo: 1,
       init: true,
       filterValue: filter,
       sortValue: sortType,
-    })
-    void getHeaderRecommendAppList()
+    }).catch(() => undefined)
+    getHeaderRecommendAppList().catch(() => undefined)
   }, [code, getAllAppList, getHeaderRecommendAppList])
   // 监听filter和sortType参数变化
   useEffect(() => {
@@ -139,12 +139,12 @@ const OfficeApps = () => {
     }
     setPageNo(1)
     setTotalPages(1)
-    void getAllAppList({
+    getAllAppList({
       pageNo: 1,
       init: true,
       filterValue: filter,
       sortValue: sortType,
-    })
+    }).catch(() => undefined)
   }, [filter, sortType, getAllAppList])
 
   useAutoLoadWhenNotScrollable({

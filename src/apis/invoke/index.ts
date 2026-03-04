@@ -9,7 +9,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event'
  * 获取正在运行的玲珑应用列表
  * @returns Promise 包含运行中的应用信息
  */
-export const getRunningLinglongApps = async() => {
+export const getRunningLinglongApps = async(): Promise<API.INVOKE.RunningApp[]> => {
   return await invoke('get_running_linglong_apps')
 }
 

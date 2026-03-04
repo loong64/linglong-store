@@ -1,6 +1,34 @@
 # Changelog
 
-## [2.1.2] - 2026-02-26 19:00
+## [2.3.0] - 2026-03-04
+
+### 新增
+- 玲珑进程页全面重构，升级为符合桌面工具习惯的进程管理页
+  - 新增顶部状态工具栏：展示运行中数量、上次刷新时间、手动刷新按钮、静默刷新状态
+  - 新增行级右键上下文菜单（`@tauri-apps/api/menu` 原生菜单）：停止进程、复制进入容器命令、复制应用 ID / PID / 容器 ID、刷新列表
+  - 新增行级操作 loading，停止进程时仅锁定当前行，不影响整表交互
+  - 新增明确空状态，无运行中进程时展示提示
+  - 新增刷新失败时保留旧数据并展示错误横幅，支持手动刷新恢复
+  - "更多"按钮作为右键菜单的显式兜底入口
+
+### 优化
+- 刷新策略从固定 1s 轮询改为智能条件感知刷新（默认 3s）
+  - 仅当标签页激活且页面可见时自动刷新
+  - 并发保护：上一轮未完成时跳过本轮
+  - 失败退避：1次失败→3s / 2次→6s / 3次以上→10s
+  - 页面从不可见切回前台时立即补刷新
+- Rust 进程查询从 N+1 外部命令优化为固定 2 次（`ll-cli ps` + `ll-cli list --json --type=all`），大幅降低查询延迟
+- `rowKey` 改为稳定的 `containerId`，消除索引导致的多余重渲染
+
+### 技术细节
+- 新增 `src/hooks/useLinglongProcesses.ts`（刷新、退避、行级操作状态统一管理）
+- 新增 `src/pages/myApps/components/linglongProcess/ProcessToolbar.tsx`
+- 新增 `src/pages/myApps/components/linglongProcess/ProcessTable.tsx`
+- `src/types/api/invoke.d.ts` 新增 `RunningApp` 类型，`id` 字段作为稳定唯一键
+- Rust `LinglongAppInfo` 新增 `id` 字段（序列化为 camelCase），前后端类型对齐
+- `src-tauri/src/services/process.rs` 重构 `get_running_linglong_apps()`，移除 N+1 `ll-cli info` 调用
+
+
 
 ### 新增
 - 应用详情页新增"创建桌面快捷方式"功能按钮

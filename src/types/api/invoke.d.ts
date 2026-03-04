@@ -107,5 +107,22 @@ declare namespace API {
       stdout: string;
       stderr: string;
     }
+
+    /**
+     * 正在运行的玲珑应用信息
+     * id 等于 containerId，作为列表稳定唯一键
+     */
+    interface RunningApp {
+      /** 稳定唯一键（等于 containerId） */
+      id: string;
+      /** 应用 ID，如 org.deepin.calculator */
+      name: string;
+      version: string;
+      arch: string;
+      channel: string;
+      source: string;
+      pid: string;
+      containerId: string;
+    }
   }
 }
