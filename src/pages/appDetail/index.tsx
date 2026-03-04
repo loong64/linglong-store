@@ -444,7 +444,6 @@ const AppDetail = () => {
             <div className={styles.appName}>
               <div className={styles.head}>
                 <p className={styles.nameId}>{currentApp.zhName || currentApp.appId}</p>
-                <p className={styles.appClass}>{currentApp.kind}</p>
               </div>
               <div className={styles.install}>
                 <Button
