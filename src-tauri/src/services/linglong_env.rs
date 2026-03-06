@@ -342,15 +342,15 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
         }
     }
 
-    // 版本校验
+    // 版本校验：版本过低时仅警告，不阻止使用
     if let Some(ref v) = result.ll_version {
         if compare_versions(v, min_version) == std::cmp::Ordering::Less {
-            result.ok = false;
+            // 不设置 ok=false，允许用户继续使用
             result.reason = Some(format!(
-                "当前玲珑基础环境版本({})过低，需升级至 >= {}",
+                "当前玲珑基础环境版本({})过低，建议升级至 >= {}",
                 v, min_version
             ));
-            return Ok(result);
+            // 注意：这里不再 return，继续后续检查
         }
     } else {
         result.ok = false;
