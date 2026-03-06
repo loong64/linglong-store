@@ -12,9 +12,10 @@
  *   - /custom_category/* (自定义分类)
  */
 
-import { Suspense, useRef, type ReactNode } from 'react'
+import { Suspense, useMemo, useRef, type ReactNode } from 'react'
 import { useLocation, useOutlet } from 'react-router-dom'
 import Loading from '@/components/Loading'
+import { KeepAliveVisibilityContext } from '@/hooks/useKeepAliveVisibility'
 
 /** 需要缓存的精确路径 */
 const CACHED_PATHS: ReadonlySet<string> = new Set([
@@ -51,6 +52,10 @@ const KeepAliveOutlet = () => {
 
   const currentPath = location.pathname
   const shouldCache = isCacheable(currentPath)
+  const activeRouteContextValue = useMemo(() => ({
+    isVisible: true,
+    pathname: currentPath,
+  }), [currentPath])
 
   // 首次访问可缓存路由时，将其 element 存入缓存
   if (shouldCache && !cacheRef.current.has(currentPath)) {
@@ -61,26 +66,35 @@ const KeepAliveOutlet = () => {
     <>
       {/* 渲染所有已缓存的路由页面，通过 display 切换可见性 */}
       {Array.from(cacheRef.current.entries()).map(([path, element]) => (
-        <div
+        <KeepAliveVisibilityContext.Provider
           key={path}
-          style={{
-            display: currentPath === path ? 'block' : 'none',
-            height: '100%',
+          value={{
+            isVisible: currentPath === path,
+            pathname: path,
           }}
         >
-          <Suspense fallback={<Loading />}>
-            {element}
-          </Suspense>
-        </div>
+          <div
+            style={{
+              display: currentPath === path ? 'block' : 'none',
+              height: '100%',
+            }}
+          >
+            <Suspense fallback={<Loading />}>
+              {element}
+            </Suspense>
+          </div>
+        </KeepAliveVisibilityContext.Provider>
       ))}
 
       {/* 非缓存路由正常渲染（导航离开后卸载） */}
       {!shouldCache && (
-        <div style={{ height: '100%' }}>
-          <Suspense fallback={<Loading />}>
-            {outlet}
-          </Suspense>
-        </div>
+        <KeepAliveVisibilityContext.Provider value={activeRouteContextValue}>
+          <div style={{ height: '100%' }}>
+            <Suspense fallback={<Loading />}>
+              {outlet}
+            </Suspense>
+          </div>
+        </KeepAliveVisibilityContext.Provider>
       )}
     </>
   )

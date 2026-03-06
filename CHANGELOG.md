@@ -17,6 +17,7 @@
   - 并发保护：上一轮未完成时跳过本轮
   - 失败退避：1次失败→3s / 2次→6s / 3次以上→10s
   - 页面从不可见切回前台时立即补刷新
+- KeepAlive 页面切换性能优化：新增 `useKeepAliveVisibility` 统一感知保活页激活态，隐藏列表页停止自动补页、滚动监听和 `ResizeObserver`，修复侧边菜单频繁切换后 CPU 占用升高、页面卡死问题
 - Rust 进程查询从 N+1 外部命令优化为固定 2 次（`ll-cli ps` + `ll-cli list --json --type=all`），大幅降低查询延迟
 - `rowKey` 改为稳定的 `containerId`，消除索引导致的多余重渲染
 - `ApplicationCard` 从组件内直接订阅 `installedApps / updates / installQueue` 调整为页面级统一建索引并下发布尔状态，减少切页、滚动和安装过程中的卡片级重渲染

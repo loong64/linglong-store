@@ -10,6 +10,7 @@ import { generateEmptyCategories } from './utils'
 import { OperateType } from '@/constants/applicationCard'
 import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
 import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
+import { useKeepAliveVisibility } from '@/hooks/useKeepAliveVisibility'
 
 const defaultPageSize = 30 // 每页显示数量
 const defaultCategorySize = 22 // 默认分类数量
@@ -22,6 +23,7 @@ const AllApps = () => {
   const arch = useGlobalStore((state) => state.arch)
   const repoName = useGlobalStore((state) => state.repoName)
   const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
+  const { isVisible } = useKeepAliveVisibility()
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [pageNo, setPageNo] = useState<number>(1)
   const [loading, setLoading] = useState<boolean>(false)
@@ -135,6 +137,10 @@ const AllApps = () => {
   const [tabTranslateY, setTabTranslateY] = useState(0)
   const tabListRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
+    if (!isVisible) {
+      return
+    }
+
     const updateTabHeight = () => {
       const tabListElement = tabListRef.current
       const activeButton = tabListElement?.querySelector<HTMLButtonElement>('button[data-active="true"]')
@@ -153,10 +159,14 @@ const AllApps = () => {
     return () => {
       window.removeEventListener('resize', updateTabHeight)
     }
-  }, [categoryList, activeCategory])
+  }, [activeCategory, categoryList, isVisible])
 
   // 监听滚动（用于控制分类栏展开/折叠）
   useEffect(() => {
+    if (!isVisible) {
+      return
+    }
+
     const handleScroll = () => {
       const listElement = listRef.current
       if (listElement) {
@@ -181,7 +191,7 @@ const AllApps = () => {
         listElement.removeEventListener('scroll', handleScroll)
       }
     }
-  }, [])
+  }, [isVisible])
 
   useAutoLoadWhenNotScrollable({
     containerRef: listRef,

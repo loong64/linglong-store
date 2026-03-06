@@ -1,4 +1,5 @@
 import { useCallback, useEffect, type RefObject } from 'react'
+import { useKeepAliveVisibility } from './useKeepAliveVisibility'
 
 interface UseAutoLoadWhenNotScrollableOptions {
   containerRef: RefObject<HTMLDivElement>
@@ -17,9 +18,15 @@ export const useAutoLoadWhenNotScrollable = ({
   threshold = 100,
   deps = [],
 }: UseAutoLoadWhenNotScrollableOptions) => {
+  const { isVisible } = useKeepAliveVisibility()
+
   const tryLoadWhenNotScrollable = useCallback(() => {
     const listElement = containerRef.current
-    if (!listElement || loading || !hasMore) {
+    if (!isVisible || !listElement || loading || !hasMore) {
+      return
+    }
+
+    if (listElement.clientHeight <= 0) {
       return
     }
 
@@ -27,9 +34,13 @@ export const useAutoLoadWhenNotScrollable = ({
     if (notScrollable) {
       onLoadMore()
     }
-  }, [containerRef, loading, hasMore, onLoadMore])
+  }, [containerRef, hasMore, isVisible, loading, onLoadMore])
 
   useEffect(() => {
+    if (!isVisible) {
+      return
+    }
+
     const handleScroll = () => {
       if (loading || !hasMore) {
         return
@@ -56,9 +67,13 @@ export const useAutoLoadWhenNotScrollable = ({
     return () => {
       listElement.removeEventListener('scroll', handleScroll)
     }
-  }, [containerRef, loading, hasMore, onLoadMore, threshold])
+  }, [containerRef, hasMore, isVisible, loading, onLoadMore, threshold])
 
   useEffect(() => {
+    if (!isVisible) {
+      return
+    }
+
     const rafId = window.requestAnimationFrame(() => {
       tryLoadWhenNotScrollable()
     })
@@ -66,9 +81,13 @@ export const useAutoLoadWhenNotScrollable = ({
     return () => {
       window.cancelAnimationFrame(rafId)
     }
-  }, [tryLoadWhenNotScrollable, ...deps])
+  }, [isVisible, tryLoadWhenNotScrollable, ...deps])
 
   useEffect(() => {
+    if (!isVisible) {
+      return
+    }
+
     const listElement = containerRef.current
     if (!listElement || typeof ResizeObserver === 'undefined') {
       return
@@ -83,5 +102,5 @@ export const useAutoLoadWhenNotScrollable = ({
     return () => {
       observer.disconnect()
     }
-  }, [containerRef, tryLoadWhenNotScrollable])
+  }, [containerRef, isVisible, tryLoadWhenNotScrollable])
 }
