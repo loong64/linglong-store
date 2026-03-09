@@ -157,23 +157,3 @@ export const isForceRequired = (errorMessage: string): boolean => {
   const normalized = errorMessage.replace(/\s+/g, ' ')
   return normalized.includes('ll-cli install') && normalized.includes('--force')
 }
-
-/**
- * 提取用户友好的错误消息
- */
-export const extractErrorMessage = (error: unknown): string => {
-  if (error instanceof Error) {
-    return error.message
-  }
-  if (typeof error === 'string') {
-    return error
-  }
-  if (typeof error === 'object' && error !== null && 'message' in error) {
-    return String((error as { message: unknown }).message)
-  }
-  try {
-    return JSON.stringify(error)
-  } catch {
-    return String(error)
-  }
-}

@@ -3,7 +3,7 @@
  * 显示安装队列中的任务状态和进度
  */
 import styles from './index.module.scss'
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 import DefaultIcon from '@/assets/linyaps.svg?url'
 import { Progress, Empty, message } from 'antd'
 import { useInstallQueueStore } from '@/stores/installQueue'
@@ -11,8 +11,10 @@ import { runApp, cancelInstall } from '@/apis/invoke'
 import SpeedTool from '@/components/speedTool'
 /**
  * 任务进度图标组件
+ * 使用 React.memo 包装以避免不必要的重渲染
+ * [性能优化] 该组件接收的 props 变化时才重新渲染
  */
-const TaskProgressIcon = ({
+const TaskProgressIcon = memo(({
   percentage = 0,
   status,
 }: {
@@ -45,7 +47,11 @@ const TaskProgressIcon = ({
       />
     </div>
   )
-}
+})
+
+// [ESLint规范] 添加 displayName 便于调试时识别组件
+// [ESLint规范] 添加 displayName 便于调试时识别组件
+TaskProgressIcon.displayName = 'TaskProgressIcon'
 
 const DownloadProgress = () => {
   const [messageApi, contextHolder] = message.useMessage()

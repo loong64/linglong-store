@@ -18,7 +18,7 @@ import { sendInstallRecord } from '@/services/analyticsService'
 import { getInstallErrorMessage, InstallErrorCode } from '@/constants/installErrorCodes'
 
 export const useGlobalInstallProgress = () => {
-  const { updateProgress, markSuccess, markFailed, currentTask } = useInstallQueueStore()
+  const { updateProgress, markSuccess, markFailed } = useInstallQueueStore()
   const checkUpdates = useUpdatesStore((state) => state.checkUpdates)
   const checkingUpdates = useUpdatesStore((state) => state.checking)
   const fetchInstalledApps = useInstalledAppsStore((state) => state.fetchInstalledApps)
@@ -33,7 +33,9 @@ export const useGlobalInstallProgress = () => {
       unlistenProgress = await onInstallProgress((progress) => {
         console.info('[useGlobalInstallProgress] Progress received:', progress)
 
-        const appName = currentTask?.appInfo?.zhName || currentTask?.appInfo?.name || progress.appId
+        // 使用 getState() 获取最新值，避免闭包陷阱
+        const task = useInstallQueueStore.getState().currentTask
+        const appName = task?.appInfo?.zhName || task?.appInfo?.name || progress.appId
 
         // 根据事件类型处理
         switch (progress.eventType) {
@@ -55,12 +57,12 @@ export const useGlobalInstallProgress = () => {
             })
 
             // 发送安装统计记录（异步，不阻塞主流程）
-            if (currentTask?.appInfo) {
-              const appInfo = currentTask.appInfo
+            if (task?.appInfo) {
+              const appInfo = task.appInfo
               sendInstallRecord({
                 appId: appInfo.appId,
                 name: appInfo.name,
-                version: currentTask.version || appInfo.version,
+                version: task.version || appInfo.version,
                 arch: appInfo.arch,
                 module: appInfo.module,
                 channel: appInfo.channel,
@@ -163,6 +165,6 @@ export const useGlobalInstallProgress = () => {
         unlistenProgress()
       }
     }
-  }, [updateProgress, markSuccess, markFailed, currentTask, checkUpdates, checkingUpdates, fetchInstalledApps])
+  }, [updateProgress, markSuccess, markFailed, checkUpdates, checkingUpdates, fetchInstalledApps])
 }
 

@@ -37,7 +37,9 @@ interface UpdatesStore {
 const AUTO_REFRESH_INTERVAL = 60 * 60 * 1000
 
 /** 定时器引用 */
-let autoRefreshTimer: NodeJS.Timeout | null = null
+// [类型兼容] 使用 ReturnType<typeof setInterval> 替代 NodeJS.Timeout
+// 确保在浏览器和 Node.js 环境中都能正确推断定时器返回值类型
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null
 
 // ==================== 辅助函数 ====================
 

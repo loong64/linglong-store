@@ -12,7 +12,7 @@
  *   - /custom_category/* (自定义分类)
  */
 
-import { Suspense, useMemo, useRef, type ReactNode } from 'react'
+import { Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { useLocation, useOutlet } from 'react-router-dom'
 import Loading from '@/components/Loading'
 import { KeepAliveVisibilityContext } from '@/hooks/useKeepAliveVisibility'
@@ -27,6 +27,9 @@ const CACHED_PATHS: ReadonlySet<string> = new Set([
 
 /** 需要缓存的路径前缀 */
 const CACHED_PREFIXES: readonly string[] = ['/custom_category/']
+
+/** 最大缓存数量，防止内存泄漏 */
+const MAX_CACHE_SIZE = 10
 
 /** 判断路径是否需要缓存 */
 function isCacheable(pathname: string): boolean {
@@ -57,10 +60,17 @@ const KeepAliveOutlet = () => {
     pathname: currentPath,
   }), [currentPath])
 
-  // 首次访问可缓存路由时，将其 element 存入缓存
-  if (shouldCache && !cacheRef.current.has(currentPath)) {
-    cacheRef.current.set(currentPath, outlet)
-  }
+  // 在 useEffect 中更新缓存，避免在渲染期间修改 Ref
+  useEffect(() => {
+    if (shouldCache && outlet && !cacheRef.current.has(currentPath)) {
+      cacheRef.current.set(currentPath, outlet)
+    }
+    // 清理过期缓存，限制最大缓存数量
+    if (cacheRef.current.size > MAX_CACHE_SIZE) {
+      const entries = Array.from(cacheRef.current.keys())
+      cacheRef.current.delete(entries[0])
+    }
+  }, [currentPath, shouldCache, outlet])
 
   return (
     <>

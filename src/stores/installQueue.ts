@@ -368,6 +368,8 @@ export const useInstallQueueStore = create<Store.InstallQueue>((set, get) => ({
       }
     } catch (error) {
       console.error('[InstallQueue] Failed to load persisted task:', error)
+      // [错误恢复] 清理损坏的 localStorage 数据，避免下次启动时反复解析失败
+      localStorage.removeItem(CURRENT_TASK_STORAGE_KEY)
     }
     return null
   },

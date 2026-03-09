@@ -81,13 +81,14 @@ const ApplicationCard = ({
   }, [appInfo.icon])
 
   // 跳转到应用详情页
+  // [性能优化] 仅依赖 appId 而非整个 appInfo 对象，避免每次渲染都重新创建函数
   const handleNavigateToDetail = useCallback(() => {
     navigate('/app_detail', {
       state: {
         ...appInfo,
       },
     })
-  }, [navigate, appInfo])
+  }, [navigate, appInfo?.appId])
 
   // 处理操作按钮点击
   const handleOperateClick = useCallback((e: React.MouseEvent<HTMLElement>) => {

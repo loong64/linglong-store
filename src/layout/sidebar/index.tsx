@@ -57,13 +57,14 @@ const Sidebar = ({ className }: { className: string }) => {
     <div className={`${styles.sidebar} ${className}`}>
       <div className={styles.menu}>
         {
-          menuList.map((item, index) => {
+          // [React规范] 使用稳定的 menuPath 作为 key，而非数组索引，避免列表重排序时的渲染问题
+          menuList.map((item) => {
             const isActive = location.pathname === item.menuPath
             const badgeCount = menuBadges[item.menuPath] || 0
             return item.show && (
               <div
                 className={`${styles.menuItem} ${isActive ? styles.active : ''}`}
-                key={index}
+                key={item.menuPath}
                 onClick={() => handleMenuClick('page', item.menuPath)}
                 style={{ cursor: 'pointer' }}
               >
@@ -86,12 +87,13 @@ const Sidebar = ({ className }: { className: string }) => {
           })
         }
         {
-          customMenus.map((item, index) => {
+          // [React规范] 使用稳定的 code 作为 key，而非数组索引，避免列表重排序时的渲染问题
+          customMenus.map((item) => {
             const isActive = location.pathname === `/custom_category/${item.code}` && customMenuActive === item.code
             return item.enabled && (
               <div
                 className={`${styles.menuItem} ${isActive ? styles.active : ''}`}
-                key={index}
+                key={`custom-${item.code}`}
                 onClick={() => handleMenuClick('custom', item.code)}
                 style={{ cursor: 'pointer' }}
               >
