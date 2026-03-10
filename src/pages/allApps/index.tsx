@@ -3,7 +3,8 @@ import { Button } from 'antd'
 import { DoubleUp, DoubleDown } from '@icon-park/react'
 import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { debounce, throttle } from '@/utils/performance'
 import { getDisCategoryList, getSearchAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
@@ -118,9 +119,12 @@ const AllApps = () => {
 
     updateTabHeight() // 初始调用一次
 
-    window.addEventListener('resize', updateTabHeight)
+    // resize 高频事件防抖，200ms 内合并为一次
+    const debouncedUpdate = debounce(updateTabHeight, 200)
+    window.addEventListener('resize', debouncedUpdate)
     return () => {
-      window.removeEventListener('resize', updateTabHeight)
+      debouncedUpdate.cancel()
+      window.removeEventListener('resize', debouncedUpdate)
     }
   }, [activeCategory, categoryList, isVisible])
 
@@ -144,14 +148,17 @@ const AllApps = () => {
       }
     }
 
+    // scroll 高频事件节流，100ms 内最多触发一次
+    const throttledScroll = throttle(handleScroll, 100)
     const listElement = listRef.current
     if (listElement) {
-      listElement.addEventListener('scroll', handleScroll)
+      listElement.addEventListener('scroll', throttledScroll)
     }
 
     return () => {
+      throttledScroll.cancel()
       if (listElement) {
-        listElement.removeEventListener('scroll', handleScroll)
+        listElement.removeEventListener('scroll', throttledScroll)
       }
     }
   }, [isVisible])
