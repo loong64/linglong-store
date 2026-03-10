@@ -4,13 +4,23 @@
  */
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
+import {
+  InstalledAppSchema,
+  RunningAppSchema,
+  LinglongEnvCheckResultSchema,
+  InstallProgressSchema,
+  NetworkSpeedSchema,
+  safeParseIpc,
+} from './schemas'
+import { z } from 'zod'
 
 /**
  * 获取正在运行的玲珑应用列表
  * @returns Promise 包含运行中的应用信息
  */
 export const getRunningLinglongApps = async(): Promise<API.INVOKE.RunningApp[]> => {
-  return await invoke('get_running_linglong_apps')
+  const data = await invoke('get_running_linglong_apps')
+  return safeParseIpc(z.array(RunningAppSchema), data, 'getRunningLinglongApps')
 }
 
 /**
@@ -28,7 +38,8 @@ export const killLinglongApp = async(appName: string) => {
  * @returns Promise<API.INVOKE.InstalledApp[]> 已安装的应用列表
  */
 export const getInstalledLinglongApps = async(includeBaseService = false): Promise<API.INVOKE.InstalledApp[]> => {
-  return await invoke('get_installed_linglong_apps', { includeBaseService })
+  const data = await invoke('get_installed_linglong_apps', { includeBaseService })
+  return safeParseIpc(z.array(InstalledAppSchema), data, 'getInstalledLinglongApps')
 }
 
 /**
@@ -137,7 +148,9 @@ export const onInstallProgress = async(
   return await listen<API.INVOKE.InstallProgress>(
     'install-progress',
     (event) => {
-      callback(event.payload)
+      // 对事件 payload 做运行时校验（降级策略）
+      const validated = safeParseIpc(InstallProgressSchema, event.payload, 'onInstallProgress')
+      callback(validated)
     },
   )
 }
@@ -165,7 +178,8 @@ export const getLlCliVersion = async(): Promise<string> => {
  * 检查玲珑环境状态
  */
 export const checkLinglongEnv = async(): Promise<API.INVOKE.LinglongEnvCheckResult> => {
-  return await invoke('check_linglong_env_cmd')
+  const data = await invoke('check_linglong_env_cmd')
+  return safeParseIpc(LinglongEnvCheckResultSchema, data, 'checkLinglongEnv')
 }
 
 /**
@@ -200,5 +214,6 @@ export interface NetworkSpeed {
  * @returns Promise<NetworkSpeed> 上传/下载速度（字节/秒）
  */
 export const getNetworkSpeed = async(): Promise<NetworkSpeed> => {
-  return await invoke<NetworkSpeed>('get_network_speed')
+  const data = await invoke<NetworkSpeed>('get_network_speed')
+  return safeParseIpc(NetworkSpeedSchema, data, 'getNetworkSpeed')
 }
