@@ -71,16 +71,19 @@ const Sidebar = ({ className }: { className: string }) => {
                   <img src={isActive ? item.activeIcon : item.icon} alt={item.menuName} />
                   {/* {isActive ? item.activeIcon : item.icon} */}
                 </span>
-                <Badge
-                  count={badgeCount}
-                  overflowCount={99}
-                  showZero={false}
-                  size='small'
-                  offset={[6, 0]}
-                  className={styles.menuBadge}
-                >
+                {badgeCount > 0 ? (
+                  <Badge
+                    count={badgeCount}
+                    overflowCount={99}
+                    size='small'
+                    offset={[6, 0]}
+                    className={styles.menuBadge}
+                  >
+                    <span className={styles.menuItemText}>{item.menuName}</span>
+                  </Badge>
+                ) : (
                   <span className={styles.menuItemText}>{item.menuName}</span>
-                </Badge>
+                )}
               </div>
             )
           })
@@ -100,16 +103,7 @@ const Sidebar = ({ className }: { className: string }) => {
                   <img src={isActive ? item.activeIcon : item.icon} alt={item.name} />
                   {/* {isActive ? item.activeIcon : item.icon} */}
                 </span>
-                <Badge
-                  count={0}
-                  overflowCount={99}
-                  showZero={false}
-                  size='small'
-                  offset={[6, 0]}
-                  className={styles.menuBadge}
-                >
-                  <span className={styles.menuItemText}>{item.name}</span>
-                </Badge>
+                <span className={styles.menuItemText}>{item.name}</span>
               </div>
             )
           })
