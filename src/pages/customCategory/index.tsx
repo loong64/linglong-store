@@ -7,18 +7,13 @@ import { useGlobalStore } from '@/stores/global'
 import { OperateType } from '@/constants/applicationCard'
 import { Select, Checkbox, Empty, type CheckboxProps } from 'antd'
 import { useParams } from 'react-router-dom'
-import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 const defaultPageSize = 30 // 每页显示数量
 type AppInfo = API.APP.AppMainDto
 const OfficeApps = () => {
   const { arch, repoName, customMenuCategory } = useGlobalStore()
   const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
-  const [pageNo, setPageNo] = useState<number>(1)
-  const [loading, setLoading] = useState<boolean>(false)
-  const [initialLoading, setInitialLoading] = useState<boolean>(true)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [allAppList, setAllAppList] = useState<AppInfo[]>([])
   const [recommendAppList, setRecommendAppList] = useState<AppInfo[]>([])
   const listRef = useRef<HTMLDivElement>(null)
   const skipFilterSortEffectRef = useRef(true)
@@ -28,6 +23,7 @@ const OfficeApps = () => {
   const name = currentCategory?.name ?? ''
   const [filter, setFilter] = useState<boolean>(false) // 是否过滤低分应用
   const [sortType, setSortType] = useState<string>('createTime') // 排序类型
+
   // 处理过滤低分应用的change事件
   const handleFilterChange:CheckboxProps['onChange'] = (e) => {
     setFilter(e.target.checked)
@@ -36,13 +32,14 @@ const OfficeApps = () => {
   const handleSortTypeChange = (value: string) => {
     setSortType(value)
   }
+
   // 获取推荐应用
   const getHeaderRecommendAppList = useCallback(async() => {
     const params = {
       repoName,
       arch,
       pageNo: 1,
-      pageSize: 5, // 只获取3个，可以写死
+      pageSize: 5,
       categoryId: categoryIds.join(','),
     }
     try {
@@ -54,106 +51,45 @@ const OfficeApps = () => {
     }
   }, [repoName, arch, categoryIds])
 
-  // 获取应用列表
-  const getAllAppList = useCallback(async({
-    pageNo = 1,
-    init = false,
-    filterValue,
-    sortValue,
-  }: {
-    pageNo?: number
-    init?: boolean
-    filterValue: boolean
-    sortValue: string
-  }) => {
-    setLoading(true)
+  const fetcher = useCallback(async(pageNo: number) => {
+    const res = await getAppListByCategoryIds({
+      menuCode: code,
+      repoName,
+      arch,
+      filter,
+      sortType,
+      pageNo,
+      pageSize: defaultPageSize,
+    })
+    return { records: (res.data.records || []) as AppInfo[], pages: res.data.pages || 1 }
+  }, [code, repoName, arch, filter, sortType])
 
-    if (init) {
-      setInitialLoading(true)
-      setAllAppList([])
-    }
-    try {
-      const res = await getAppListByCategoryIds({
-        menuCode: code,
-        repoName,
-        arch,
-        filter: filterValue,
-        sortType: sortValue,
-        pageNo,
-        pageSize: defaultPageSize,
-      })
-
-      const newRecords = res.data.records || []
-
-      if (init) {
-        // 初始化时直接替换
-        setAllAppList(newRecords)
-      } else {
-        // 追加新数据
-        setAllAppList(prev => [...prev, ...newRecords])
-      }
-
-      setTotalPages(res.data.pages || 1)
-      setPageNo(pageNo)
-    } catch (error) {
-      console.error('获取应用列表失败:', error)
-      if (init) {
-        setAllAppList([])
-      }
-    } finally {
-      if (init) {
-        setInitialLoading(false)
-      }
-      setLoading(false)
-    }
-  }, [code, repoName, arch])
-
-  const loadNextPage = useCallback(() => {
-    if (loading || pageNo >= totalPages) {
-      return
-    }
-    getAllAppList({
-      pageNo: pageNo + 1,
-      filterValue: filter,
-      sortValue: sortType,
-    }).catch(() => undefined)
-  }, [loading, pageNo, totalPages, getAllAppList, filter, sortType])
+  const {
+    items: allAppList,
+    loading,
+    initialLoading,
+    hasMore,
+    loadPage,
+  } = usePaginatedList<AppInfo>({
+    fetcher,
+    containerRef: listRef as React.RefObject<HTMLDivElement>,
+    pageSize: defaultPageSize,
+  })
 
   // 初始化获取数据
   useEffect(() => {
-    setPageNo(1)
-    setTotalPages(1)
-    getAllAppList({
-      pageNo: 1,
-      init: true,
-      filterValue: filter,
-      sortValue: sortType,
-    }).catch(() => undefined)
+    loadPage(1, true)
     getHeaderRecommendAppList().catch(() => undefined)
-  }, [code, getAllAppList, getHeaderRecommendAppList])
-  // 监听filter和sortType参数变化
+  }, [code, loadPage, getHeaderRecommendAppList])
+
+  // 监听 filter 和 sortType 参数变化
   useEffect(() => {
     if (skipFilterSortEffectRef.current) {
       skipFilterSortEffectRef.current = false
       return
     }
-    setPageNo(1)
-    setTotalPages(1)
-    getAllAppList({
-      pageNo: 1,
-      init: true,
-      filterValue: filter,
-      sortValue: sortType,
-    }).catch(() => undefined)
-  }, [filter, sortType, getAllAppList])
-
-  useAutoLoadWhenNotScrollable({
-    containerRef: listRef,
-    loading,
-    hasMore: pageNo < totalPages,
-    onLoadMore: loadNextPage,
-    deps: [allAppList, pageNo, totalPages],
-  })
+    loadPage(1, true)
+  }, [filter, sortType, loadPage])
 
   return <div className={styles.officeAppsPage} ref={listRef} >
     <div className={styles.search} >
@@ -216,7 +152,7 @@ const OfficeApps = () => {
             })
           }
           {loading && <div className={styles.loadingTip}>加载中...</div>}
-          {!loading && totalPages <= pageNo && <div className={styles.noMoreTip}>没有更多数据了</div>}
+          {!loading && !hasMore && <div className={styles.noMoreTip}>没有更多数据了</div>}
         </>
       ) : (
         <div className={styles.emptyState}>

@@ -7,7 +7,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { getDisCategoryList, getSearchAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import { OperateType } from '@/constants/applicationCard'
-import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 import { useKeepAliveVisibility } from '@/hooks/useKeepAliveVisibility'
 
@@ -23,13 +23,32 @@ const AllApps = () => {
   const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
   const { isVisible } = useKeepAliveVisibility()
   const [activeCategory, setActiveCategory] = useState<string>('')
-  const [pageNo, setPageNo] = useState<number>(1)
-  const [loading, setLoading] = useState<boolean>(false)
-  const [initialLoading, setInitialLoading] = useState<boolean>(true)
-  const [totalPages, setTotalPages] = useState<number>(1)
   const [categoryList, setCategoryList] = useState<Category[]>([])
-  const [allAppList, setAllAppList] = useState<AppInfo[]>([])
   const listRef = useRef<HTMLDivElement>(null)
+
+  const fetcher = useCallback(async(pageNo: number) => {
+    const res = await getSearchAppList({
+      categoryId: activeCategory,
+      repoName,
+      arch,
+      pageNo,
+      pageSize: defaultPageSize,
+    })
+    return { records: (res.data.records || []) as AppInfo[], pages: res.data.pages || 1 }
+  }, [activeCategory, repoName, arch])
+
+  const {
+    items: allAppList,
+    loading,
+    initialLoading,
+    hasMore,
+    loadPage,
+  } = usePaginatedList<AppInfo>({
+    fetcher,
+    containerRef: listRef as React.RefObject<HTMLDivElement>,
+    pageSize: defaultPageSize,
+    extraDeps: [activeCategory],
+  })
 
   // 获取分类列表
   const getCategoryList = async() => {
@@ -49,58 +68,8 @@ const AllApps = () => {
     }
   }
 
-  // 获取应用列表
-  const getAllAppList = useCallback(async({ categoryId = '', pageNo = 1, init = false }: { categoryId?: string, pageNo?: number, init?: boolean }) => {
-    setLoading(true)
-
-    if (init) {
-      setInitialLoading(true)
-      setAllAppList([])
-    }
-    try {
-      const res = await getSearchAppList({
-        categoryId,
-        repoName,
-        arch,
-        pageNo,
-        pageSize: defaultPageSize,
-      })
-
-      const newRecords = res.data.records || []
-
-      if (init) {
-        // 初始化时直接替换
-        setAllAppList(newRecords)
-      } else {
-        // 追加新数据
-        setAllAppList(prev => [...prev, ...newRecords])
-      }
-
-      setTotalPages(res.data.pages || 1)
-      setPageNo(pageNo)
-    } catch (error) {
-      console.error('获取应用列表失败:', error)
-      // 错误时移除空卡片
-      if (init) {
-        setAllAppList([])
-      }
-    } finally {
-      if (init) {
-        setInitialLoading(false)
-      }
-      setLoading(false)
-    }
-  }, [repoName, arch])
-
-  const loadNextPage = useCallback(() => {
-    if (loading || pageNo >= totalPages) {
-      return
-    }
-    getAllAppList({ categoryId: activeCategory, pageNo: pageNo + 1 })
-  }, [loading, pageNo, totalPages, activeCategory, getAllAppList])
-
   const handleCategoryChange = (categoryId: string) => {
-    // 立即滚动到顶部（异步以确保 DOM 已更新）
+    // 立即滚动到顶部
     setTimeout(() => {
       const listElement = listRef.current
       if (listElement) {
@@ -109,9 +78,8 @@ const AllApps = () => {
     }, 0)
 
     setActiveCategory(categoryId)
-    setPageNo(1)
-    getAllAppList({ categoryId, pageNo: 1, init: true })
     setTabOpen(true)
+    // loadPage 将在 fetcher 更新（activeCategory 变化）后由 useEffect 触发
   }
 
   // 设置分类展开或者折叠
@@ -123,8 +91,12 @@ const AllApps = () => {
   // 初始化获取数据
   useEffect(() => {
     getCategoryList()
-    getAllAppList({ pageNo: 1, init: true })
-  }, [getAllAppList])
+  }, [])
+
+  // activeCategory 或 fetcher 变化时重新加载
+  useEffect(() => {
+    loadPage(1, true)
+  }, [loadPage])
 
   // 监听窗口 resize 事件，调整分类栏高度
   const [tabHeight, setTabHeight] = useState(0)
@@ -187,14 +159,6 @@ const AllApps = () => {
     }
   }, [isVisible])
 
-  useAutoLoadWhenNotScrollable({
-    containerRef: listRef,
-    loading,
-    hasMore: pageNo < totalPages,
-    onLoadMore: loadNextPage,
-    deps: [allAppList, activeCategory, pageNo, totalPages],
-  })
-
   return <div className={styles.allAppsPage} ref={listRef} >
     <div className={styles.tabBtn} style={{ height: tabOpen ? 'auto' : '3.6em' }}>
       <div className={styles.tabBtnList} ref={tabListRef} style={{ transform: tabOpen ? 'none' : `translateY(-${tabTranslateY}px)` }}>
@@ -236,7 +200,7 @@ const AllApps = () => {
             })
           }
           {loading && <div className={styles.loadingTip}>加载中...</div>}
-          {totalPages <= pageNo && allAppList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
+          {!hasMore && allAppList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
         </>
       )}
     </div>
