@@ -7,15 +7,17 @@ import { useGlobalStore } from '@/stores/global'
 const DEFAULT_REASON = '检测到系统未安装玲珑环境，请先安装'
 
 export const useLinglongEnv = () => {
-  // [Zustand最佳实践] 使用 selector 模式获取 setter 函数
-  // 避免使用 getState() 绕过响应式订阅机制
-  const setChecking = useGlobalStore(state => state.setChecking)
-  const setInstalling = useGlobalStore(state => state.setInstalling)
-  const setReason = useGlobalStore(state => state.setReason)
-  const setEnvReady = useGlobalStore(state => state.setEnvReady)
-  const setEnvInfo = useGlobalStore(state => state.setEnvInfo)
-  const setArch = useGlobalStore(state => state.setArch)
-  const setRepoName = useGlobalStore(state => state.setRepoName)
+  // 直接从 store 获取 setter 函数，避免使用 selector 返回对象导致无限循环
+  // setter 函数是稳定的，不需要响应式订阅
+  const {
+    setChecking,
+    setInstalling,
+    setReason,
+    setEnvReady,
+    setEnvInfo,
+    setArch,
+    setRepoName,
+  } = useGlobalStore.getState()
 
   const runCheck = useCallback(async(): Promise<API.INVOKE.LinglongEnvCheckResult> => {
     setChecking(true)

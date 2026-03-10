@@ -12,7 +12,7 @@
  *   - /custom_category/* (自定义分类)
  */
 
-import { Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { Suspense, useMemo, useRef, type ReactNode } from 'react'
 import { useLocation, useOutlet } from 'react-router-dom'
 import Loading from '@/components/Loading'
 import { KeepAliveVisibilityContext } from '@/hooks/useKeepAliveVisibility'
@@ -60,17 +60,15 @@ const KeepAliveOutlet = () => {
     pathname: currentPath,
   }), [currentPath])
 
-  // 在 useEffect 中更新缓存，避免在渲染期间修改 Ref
-  useEffect(() => {
-    if (shouldCache && outlet && !cacheRef.current.has(currentPath)) {
-      cacheRef.current.set(currentPath, outlet)
+  if (shouldCache && outlet && !cacheRef.current.has(currentPath)) {
+    if (cacheRef.current.size >= MAX_CACHE_SIZE) {
+      const oldestPath = cacheRef.current.keys().next().value
+      if (oldestPath) {
+        cacheRef.current.delete(oldestPath)
+      }
     }
-    // 清理过期缓存，限制最大缓存数量
-    if (cacheRef.current.size > MAX_CACHE_SIZE) {
-      const entries = Array.from(cacheRef.current.keys())
-      cacheRef.current.delete(entries[0])
-    }
-  }, [currentPath, shouldCache, outlet])
+    cacheRef.current.set(currentPath, outlet)
+  }
 
   return (
     <>
