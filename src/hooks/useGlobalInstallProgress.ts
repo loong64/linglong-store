@@ -141,11 +141,20 @@ export const useGlobalInstallProgress = () => {
           }
 
           // 检查是否安装失败
-          if (progress.status.includes('失败') || progress.status.includes('取消')) {
+          if (progress.status.includes('失败')) {
             markFailed(progress.appId, progress.status)
             messageApi.error({
               content: `${appName} ${progress.status}`,
               key: `install-failed-${progress.appId}`,
+            })
+          }
+
+          // 检查是否安装取消（旧格式兼容，使用 info 级别提示）
+          if (progress.status.includes('取消')) {
+            markFailed(progress.appId, progress.status)
+            messageApi.info({
+              content: `${appName} 安装已取消`,
+              key: `install-cancelled-${progress.appId}`,
             })
           }
           break

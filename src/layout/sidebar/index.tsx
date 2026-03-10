@@ -13,7 +13,6 @@ import { useState, useEffect } from 'react'
 import { useInstallQueueStore } from '@/stores/installQueue'
 
 const Sidebar = ({ className }: { className: string }) => {
-  // const updateAppSum = useInitStore((state) => state.updateAppNum)
   const resetKeyword = useSearchStore((state) => state.resetKeyword)
   const customMenus = useGlobalStore((state) => state.customMenuCategory)
   const menuBadges = useMenuBadges()

@@ -51,13 +51,6 @@ declare namespace API {
       errorDetail?: string;
     }
 
-    // 安装取消事件（保留兼容，但建议使用 InstallProgress 的 error 类型）
-    interface InstallCancelled {
-      appId: string; // 应用ID
-      cancelled: boolean; // 是否已取消
-      message: string; // 取消消息
-    }
-
     // 应用更新信息
     interface UpdateInfo {
       appId: string;

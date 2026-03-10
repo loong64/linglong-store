@@ -186,3 +186,19 @@ export const installLinglongEnv = async(
 export const pruneApps = async(): Promise<string> => {
   return await invoke('prune_apps')
 }
+
+/**
+ * 网络速度信息
+ */
+export interface NetworkSpeed {
+  upload_speed: number
+  download_speed: number
+}
+
+/**
+ * 获取当前网络速度
+ * @returns Promise<NetworkSpeed> 上传/下载速度（字节/秒）
+ */
+export const getNetworkSpeed = async(): Promise<NetworkSpeed> => {
+  return await invoke<NetworkSpeed>('get_network_speed')
+}
