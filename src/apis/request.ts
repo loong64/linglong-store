@@ -21,9 +21,9 @@ const alovaInstance = createAlova({
   // GET 请求默认 5 分钟内存缓存，避免短时间内的重复请求
   cacheFor: {
     GET: 5 * 60 * 1000,
-    POST: 0,
-    PUT: 0,
-    DELETE: 0,
+    POST: 0 as const,
+    PUT: 0 as const,
+    DELETE: 0 as const,
   },
   beforeRequest(method) {
     const isFormData = typeof FormData !== 'undefined' && method.data instanceof FormData

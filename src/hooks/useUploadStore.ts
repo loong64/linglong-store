@@ -12,28 +12,34 @@ import adapterFetch from 'alova/fetch'
 const GITEE_REPO = 'Shirosu/linglong-store'
 
 // 延迟创建 Gitee API 专用的 alova 实例，避免模块加载时的开销
-let _giteeAlova: ReturnType<typeof createAlova> | null = null
+// 使用工厂函数让 TypeScript 正确推断含 adapterFetch 泛型参数的返回类型
+function createGiteeAlova() {
+  return createAlova({
+    baseURL: 'https://gitee.com/api/v5',
+    requestAdapter: adapterFetch(),
+    timeout: 10000,
+    responded: {
+      onSuccess: async(response: Response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+        return response.json()
+      },
+      onError: (error: Error) => {
+        console.error('Gitee API 请求失败:', error)
+        throw error
+      },
+    },
+  })
+}
+
+let _giteeAlova: ReturnType<typeof createGiteeAlova> | null = null
+
 function getGiteeAlova() {
   if (!_giteeAlova) {
-    _giteeAlova = createAlova({
-      baseURL: 'https://gitee.com/api/v5',
-      requestAdapter: adapterFetch(),
-      timeout: 10000,
-      responded: {
-        onSuccess: async(response: Response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-          }
-          return response.json()
-        },
-        onError: (error: Error) => {
-          console.error('Gitee API 请求失败:', error)
-          throw error
-        },
-      },
-    })
+    _giteeAlova = createGiteeAlova()
   }
-  return _giteeAlova
+  return _giteeAlova!
 }
 
 /**
