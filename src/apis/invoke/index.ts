@@ -14,12 +14,46 @@ import {
 } from './schemas'
 import { z } from 'zod'
 
+/** IPC 默认超时时间（毫秒） */
+const IPC_DEFAULT_TIMEOUT = 15_000
+
+/**
+ * 带超时控制的 Tauri invoke 封装
+ * 防止后端挂起时前端无限等待
+ * @param cmd - Tauri 命令名称
+ * @param args - 命令参数
+ * @param timeout - 超时时间（毫秒），默认 15s
+ */
+async function invokeWithTimeout<T>(
+  cmd: string,
+  args?: Record<string, unknown>,
+  timeout = IPC_DEFAULT_TIMEOUT,
+): Promise<T> {
+  // AbortController 用于在超时后忽略延迟到达的结果
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeout)
+
+  try {
+    const result = await Promise.race([
+      invoke<T>(cmd, args),
+      new Promise<never>((_resolve, reject) => {
+        controller.signal.addEventListener('abort', () =>
+          reject(new Error(`IPC 调用超时 (${timeout}ms): ${cmd}`)),
+        )
+      }),
+    ])
+    return result
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /**
  * 获取正在运行的玲珑应用列表
  * @returns Promise 包含运行中的应用信息
  */
 export const getRunningLinglongApps = async(): Promise<API.INVOKE.RunningApp[]> => {
-  const data = await invoke('get_running_linglong_apps')
+  const data = await invokeWithTimeout('get_running_linglong_apps')
   return safeParseIpc(z.array(RunningAppSchema), data, 'getRunningLinglongApps')
 }
 
@@ -29,7 +63,8 @@ export const getRunningLinglongApps = async(): Promise<API.INVOKE.RunningApp[]> 
  * @returns Promise 包含操作结果
  */
 export const killLinglongApp = async(appName: string) => {
-  return await invoke('kill_linglong_app', { appName })
+  // kill 操作可能需要多次重试，给予较长超时
+  return await invokeWithTimeout('kill_linglong_app', { appName }, 60_000)
 }
 
 /**
@@ -38,7 +73,7 @@ export const killLinglongApp = async(appName: string) => {
  * @returns Promise<API.INVOKE.InstalledApp[]> 已安装的应用列表
  */
 export const getInstalledLinglongApps = async(includeBaseService = false): Promise<API.INVOKE.InstalledApp[]> => {
-  const data = await invoke('get_installed_linglong_apps', { includeBaseService })
+  const data = await invokeWithTimeout('get_installed_linglong_apps', { includeBaseService })
   return safeParseIpc(z.array(InstalledAppSchema), data, 'getInstalledLinglongApps')
 }
 
@@ -52,7 +87,8 @@ export const uninstallApp = async(
   appId: string,
   version: string,
 ): Promise<string> => {
-  return await invoke('uninstall_app', { appId, version })
+  // 卸载可能较慢，给予较长超时
+  return await invokeWithTimeout('uninstall_app', { appId, version }, 60_000)
 }
 
 /**
@@ -63,7 +99,7 @@ export const uninstallApp = async(
 export const searchVersions = async(
   appId: string,
 ): Promise<API.INVOKE.InstalledApp[]> => {
-  return await invoke('search_versions', { appId })
+  return await invokeWithTimeout('search_versions', { appId })
 }
 
 /**
@@ -74,7 +110,7 @@ export const searchVersions = async(
 export const runApp = async(
   appId: string,
 ): Promise<string> => {
-  return await invoke('run_app', { appId })
+  return await invokeWithTimeout('run_app', { appId })
 }
 
 /**
@@ -85,7 +121,7 @@ export const runApp = async(
 export const createDesktopShortcut = async(
   appId: string,
 ): Promise<string> => {
-  return await invoke('create_desktop_shortcut', { appId })
+  return await invokeWithTimeout('create_desktop_shortcut', { appId })
 }
 
 /**
@@ -100,7 +136,8 @@ export const installApp = async(
   version?: string,
   force = false,
 ): Promise<string> => {
-  return await invoke('install_app', { appId, version: version || null, force })
+  // 安装是长时间操作，进度由事件推送，这里只是发起请求，给 60s 超时
+  return await invokeWithTimeout('install_app', { appId, version: version || null, force }, 60_000)
 }
 
 /**
@@ -111,7 +148,7 @@ export const installApp = async(
 export const cancelInstall = async(
   appId: string,
 ): Promise<string> => {
-  return await invoke('cancel_install', { appId })
+  return await invokeWithTimeout('cancel_install', { appId }, 30_000)
 }
 
 /**
@@ -119,7 +156,7 @@ export const cancelInstall = async(
  * @returns Promise<void>
  */
 export const quitApp = async(): Promise<void> => {
-  return await invoke('quit_app')
+  return await invokeWithTimeout('quit_app')
 }
 
 /**
@@ -163,7 +200,7 @@ export const onInstallProgress = async(
 export const searchRemoteApp = async(
   appId: string,
 ): Promise<API.INVOKE.SearchResultItem[]> => {
-  return await invoke('search_remote_app_cmd', { appId })
+  return await invokeWithTimeout('search_remote_app_cmd', { appId })
 }
 
 /**
@@ -171,14 +208,15 @@ export const searchRemoteApp = async(
  * @returns Promise<string> 例如: "linyaps CLI version 1.9.9"
  */
 export const getLlCliVersion = async(): Promise<string> => {
-  return await invoke('get_ll_cli_version_cmd')
+  return await invokeWithTimeout('get_ll_cli_version_cmd')
 }
 
 /**
  * 检查玲珑环境状态
  */
 export const checkLinglongEnv = async(): Promise<API.INVOKE.LinglongEnvCheckResult> => {
-  const data = await invoke('check_linglong_env_cmd')
+  // 环境检测涉及多次 CLI 调用，给予较长超时
+  const data = await invokeWithTimeout('check_linglong_env_cmd', undefined, 60_000)
   return safeParseIpc(LinglongEnvCheckResultSchema, data, 'checkLinglongEnv')
 }
 
@@ -189,7 +227,8 @@ export const checkLinglongEnv = async(): Promise<API.INVOKE.LinglongEnvCheckResu
 export const installLinglongEnv = async(
   script: string,
 ): Promise<API.INVOKE.InstallLinglongResult> => {
-  return await invoke('install_linglong_env_cmd', { script })
+  // 环境安装需要 pkexec 授权和下载，给予很长超时
+  return await invokeWithTimeout('install_linglong_env_cmd', { script }, 300_000)
 }
 
 /**
@@ -198,7 +237,7 @@ export const installLinglongEnv = async(
  * @returns Promise<string> 清理操作的结果消息
  */
 export const pruneApps = async(): Promise<string> => {
-  return await invoke('prune_apps')
+  return await invokeWithTimeout('prune_apps', undefined, 60_000)
 }
 
 /**
@@ -214,6 +253,6 @@ export interface NetworkSpeed {
  * @returns Promise<NetworkSpeed> 上传/下载速度（字节/秒）
  */
 export const getNetworkSpeed = async(): Promise<NetworkSpeed> => {
-  const data = await invoke<NetworkSpeed>('get_network_speed')
+  const data = await invokeWithTimeout<NetworkSpeed>('get_network_speed', undefined, 5_000)
   return safeParseIpc(NetworkSpeedSchema, data, 'getNetworkSpeed')
 }
