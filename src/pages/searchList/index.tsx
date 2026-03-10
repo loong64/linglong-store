@@ -6,6 +6,7 @@ import { getSearchAppList } from '@/apis/apps/index'
 import { useEffect, useRef, useCallback } from 'react'
 import { Empty } from 'antd'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { debounce } from '@/utils/performance'
 const defaultPageSize = 10 // 每页显示数量
 
 type AppInfo = API.APP.AppMainDto
@@ -40,13 +41,20 @@ const SearchList = ()=>{
     extraDeps: [keyword],
   })
 
-  // 关键词变化时重新搜索
-  useEffect(() => {
-    if (!keyword) {
+  // 关键词变化时防抖搜索（300ms），防止快速切换关键词导致竞态
+  const debouncedSearchRef = useRef(debounce((kw: string) => {
+    if (!kw) {
       reset()
       return
     }
     loadPage(1, true)
+  }, 300))
+
+  useEffect(() => {
+    debouncedSearchRef.current(keyword)
+    return () => {
+      debouncedSearchRef.current.cancel()
+    }
   }, [keyword, loadPage, reset])
 
   return <div className={styles.searchPage} ref={listRef}>
