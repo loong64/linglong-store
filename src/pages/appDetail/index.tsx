@@ -209,7 +209,6 @@ const AppDetail = () => {
     try {
       const result = await uninstall(
         { appId: currentApp.appId, version, name: currentApp.name, zhName: currentApp.zhName },
-        { onAllRemoved: () => navigate('/my_apps') },
       )
       if (result) {
         console.info('[handleUninstall] Successfully uninstalled:', currentApp.appId, version)
