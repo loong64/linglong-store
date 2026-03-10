@@ -1,7 +1,7 @@
 import { create } from 'zustand'
-import { getInstalledLinglongApps } from '@/apis/invoke'
 import { appCheckUpdate } from '@/apis/apps'
 import { useGlobalStore } from './global'
+import { useInstalledAppsStore } from './installedApps'
 
 // ==================== 类型定义 ====================
 
@@ -120,8 +120,8 @@ export const useUpdatesStore = create<UpdatesStore>((set, get) => ({
     set({ checking: true })
 
     try {
-      // 1. 获取已安装的应用列表
-      const installedApps = await getInstalledLinglongApps()
+      // 1. 从 installedApps store 获取已安装列表，避免重复 IPC 调用
+      const installedApps = useInstalledAppsStore.getState().installedApps
       if (installedApps.length === 0) {
         set({ updates: [], lastChecked: Date.now() })
         return
