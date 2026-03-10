@@ -7,6 +7,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::process::Command as AsyncCommand;
 use crate::services::executor;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -112,8 +113,8 @@ fn parse_ll_version(raw: &str) -> Option<String> {
     }
 }
 
-fn get_ll_cli_version_inner() -> Result<String, String> {
-    let output = executor::execute(&["--json", "--version"], "version")?;
+pub async fn get_ll_cli_version() -> Result<String, String> {
+    let output = executor::execute(&["--json", "--version"], "version").await?;
 
     if output.success {
         if let Some(v) = parse_ll_version(&output.stdout) {
@@ -122,10 +123,6 @@ fn get_ll_cli_version_inner() -> Result<String, String> {
     }
 
     Err("无法解析玲珑版本，请确认 ll-cli 可用".to_string())
-}
-
-pub async fn get_ll_cli_version() -> Result<String, String> {
-    get_ll_cli_version_inner()
 }
 
 fn parse_glibc_version(raw: &str) -> Option<String> {
@@ -176,7 +173,7 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
     let mut result = LinglongEnvCheckResult::default();
 
     // 获取架构
-    if let Ok(output) = Command::new("uname").arg("-m").output() {
+    if let Ok(output) = AsyncCommand::new("uname").arg("-m").output().await {
         if output.status.success() {
             result.arch = Some(String::from_utf8_lossy(&output.stdout).trim().to_string());
         }
@@ -194,16 +191,17 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
         });
     if let Some(name) = os_release {
         result.os_version = Some(name);
-    } else if let Ok(output) = Command::new("uname").arg("-a").output() {
+    } else if let Ok(output) = AsyncCommand::new("uname").arg("-a").output().await {
         if output.status.success() {
             result.os_version = Some(String::from_utf8_lossy(&output.stdout).trim().to_string());
         }
     }
 
     // 获取 glibc 版本（ldd --version）
-    let glibc_version = Command::new("ldd")
+    let glibc_version = AsyncCommand::new("ldd")
         .arg("--version")
         .output()
+        .await
         .ok()
         .and_then(|output| {
             if !output.status.success() {
@@ -217,9 +215,10 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
     result.glibc_version = Some(glibc_version.clone());
 
     // 获取内核信息（uname -a）
-    let kernel_info = Command::new("uname")
+    let kernel_info = AsyncCommand::new("uname")
         .arg("-a")
         .output()
+        .await
         .ok()
         .and_then(|output| {
             if output.status.success() {
@@ -235,10 +234,11 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
     }
 
     // dpkg 信息（仅作为日志展示）
-    if let Ok(output) = Command::new("bash")
+    if let Ok(output) = AsyncCommand::new("bash")
         .arg("-c")
         .arg("dpkg -l | grep linglong")
         .output()
+        .await
     {
         if output.status.success() {
             result.detail_msg = Some(String::from_utf8_lossy(&output.stdout).to_string());
@@ -246,7 +246,7 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
     }
 
     // 检查 ll-cli 是否存在
-    let exists = executor::execute(&["--help"], "env_check_help");
+    let exists = executor::execute(&["--help"], "env_check_help").await;
     if exists.is_err() || !exists.as_ref().unwrap().success {
         result.ok = false;
         result.reason = Some("检测到系统未安装玲珑环境，请先安装".to_string());
@@ -254,7 +254,7 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
     }
 
     // 仓库信息
-    let repo_output = executor::execute(&["--json", "repo", "show"], "env_repo");
+    let repo_output = executor::execute(&["--json", "repo", "show"], "env_repo").await;
     let mut repo_info = LinglongEnvCheckResult::default();
     if let Ok(output) = repo_output {
         if output.success {
@@ -286,7 +286,7 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
             }
         } else {
             // 尝试旧命令
-            if let Ok(fallback) = executor::execute(&["repo", "show"], "env_repo_fallback") {
+            if let Ok(fallback) = executor::execute(&["repo", "show"], "env_repo_fallback").await {
                 if fallback.success {
                     repo_info = parse_repo_output(&fallback.stdout);
                 }
@@ -302,14 +302,15 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
     result.repos = repo_info.repos.clone();
 
     // 获取 ll-cli 版本
-    let version = get_ll_cli_version_inner().ok();
+    let version = get_ll_cli_version().await.ok();
     result.ll_version = version.clone();
 
     // 获取 linglong-bin 版本（APT 系）
-    if let Ok(output) = Command::new("apt-cache")
+    if let Ok(output) = AsyncCommand::new("apt-cache")
         .arg("policy")
         .arg("linglong-bin")
         .output()
+        .await
     {
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);

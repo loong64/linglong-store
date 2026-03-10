@@ -20,7 +20,7 @@ pub use install::{
     create_desktop_shortcut,
 };
 
-const ENGLISH_LOCALE_ENV: [(&str, &str); 4] = [
+pub(crate) const ENGLISH_LOCALE_ENV: [(&str, &str); 4] = [
     ("LC_ALL", "C.UTF-8"),
     ("LANG", "C.UTF-8"),
     ("LANGUAGE", "en_US"),

@@ -6,7 +6,7 @@ use crate::services::executor;
 pub async fn prune_linglong_apps() -> Result<String, String> {
     info!("[prune_linglong_apps] Starting prune operation");
 
-    let output = executor::execute(&["prune"], "prune")?;
+    let output = executor::execute(&["prune"], "prune").await?;
 
     if output.success {
         let message = if output.stdout.trim().is_empty() {

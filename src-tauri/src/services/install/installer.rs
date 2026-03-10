@@ -344,11 +344,12 @@ pub async fn cancel_linglong_install(
     // 2. 杀死安装进程
     info!("[Installer:Cancel] Executing: pkexec killall -15 ll-package-manager ll-cli");
 
-    let _output = std::process::Command::new("pkexec")
+    let _output = tokio::process::Command::new("pkexec")
         .arg("killall")
         .arg("-15") // SIGTERM 优雅终止
         .arg("ll-cli")
-        .output();
+        .output()
+        .await;
 
     // 3. 发送取消事件
     let emitter = ProgressEmitter::new(&app_handle, app_id);

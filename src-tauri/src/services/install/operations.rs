@@ -32,7 +32,7 @@ pub async fn get_installed_apps(include_base_service: bool) -> Result<Vec<Instal
         vec!["list", "--json"]
     };
 
-    let stdout = executor::execute_or_err(&args, "list")?;
+    let stdout = executor::execute_or_err(&args, "list").await?;
     let trimmed = stdout.trim();
 
     if trimmed.is_empty() {
@@ -88,7 +88,7 @@ pub async fn uninstall_linglong_app(app_id: String, version: String) -> Result<S
 
     let app_ref = format!("{}/{}", app_id, version);
 
-    executor::execute_or_err(&["uninstall", &app_ref], "uninstall")?;
+    executor::execute_or_err(&["uninstall", &app_ref], "uninstall").await?;
 
     Ok(format!(
         "Successfully uninstalled {} version {}",
@@ -114,7 +114,7 @@ pub async fn search_app_versions(app_id: String) -> Result<Vec<InstalledApp>, St
     let stdout = executor::execute_or_err(
         &["list", "--json", "--type=all"],
         "search_versions",
-    ).map_err(|e| {
+    ).await.map_err(|e| {
         error!("[SearchVersions] Error: {}", e);
         e
     })?;
@@ -235,7 +235,7 @@ pub async fn create_desktop_shortcut(app_id: String) -> Result<String, String> {
         return Err(format!("应用未安装，无法创建快捷方式: {}", app_id));
     }
 
-    let stdout = executor::execute_or_err(&["content", &app_id], "content")?;
+    let stdout = executor::execute_or_err(&["content", &app_id], "content").await?;
 
     let desktop_source = stdout
         .lines()

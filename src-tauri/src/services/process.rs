@@ -76,7 +76,7 @@ fn extract_source(runtime: Option<&String>) -> String {
 /// 替代原来的 1+N 次（1 次 ps + N 次 info），大幅降低查询延迟。
 pub async fn get_running_linglong_apps() -> Result<Vec<LinglongAppInfo>, String> {
     // 1. 获取运行中进程列表
-    let ps_stdout = executor::execute_or_err(&["ps"], "ps")?;
+    let ps_stdout = executor::execute_or_err(&["ps"], "ps").await?;
     let running = parse_ps_output(&ps_stdout);
 
     if running.is_empty() {
@@ -84,7 +84,7 @@ pub async fn get_running_linglong_apps() -> Result<Vec<LinglongAppInfo>, String>
     }
 
     // 2. 批量获取已安装应用详情，构建查找表
-    let list_map = match executor::execute(&["list", "--json", "--type=all"], "ps_list") {
+    let list_map = match executor::execute(&["list", "--json", "--type=all"], "ps_list").await {
         Ok(output) if output.success => build_list_map(&output.stdout),
         _ => {
             warn!("[get_running_linglong_apps] ll-cli list failed, falling back to empty map");
@@ -128,7 +128,7 @@ pub async fn get_running_linglong_apps() -> Result<Vec<LinglongAppInfo>, String>
 }
 
 async fn is_app_running(app_id: &str) -> Result<bool, String> {
-    let stdout = executor::execute_or_err(&["ps"], "is_app_running")?;
+    let stdout = executor::execute_or_err(&["ps"], "is_app_running").await?;
     let running = parse_ps_output(&stdout);
     Ok(running.iter().any(|(name, _, _)| name == app_id))
 }
@@ -149,7 +149,7 @@ pub async fn kill_linglong_app(app_name: String) -> Result<String, String> {
         let kill_output = executor::execute(
             &["kill", "-s", "9", &app_name],
             "kill",
-        ).map_err(|e| format!("Failed to execute 'll-cli kill': {}", e))?;
+        ).await.map_err(|e| format!("Failed to execute 'll-cli kill': {}", e))?;
 
         let mut error_msg = kill_output.stderr.clone();
         if !kill_output.success {

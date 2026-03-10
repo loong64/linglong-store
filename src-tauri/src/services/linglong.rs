@@ -19,7 +19,7 @@ pub async fn search_remote_app(app_id: String) -> Result<Vec<SearchResultItem>, 
     let stdout = executor::execute_or_err(
         &["search", &app_id, "--json"],
         "search",
-    )?;
+    ).await?;
 
     let trimmed = stdout.trim();
     if trimmed.is_empty() {
