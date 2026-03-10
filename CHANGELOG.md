@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.2] - 2026-03-10
+
+### 新增
+- 应用列表新增“内置 seed + 运行时本地缓存 + 页面可见即后台刷新”的混合缓存机制
+  - 新增 `src/services/appListCache/` 统一收口列表 seed、运行时缓存、缓存 key 与回写逻辑
+  - 新增 `src/hooks/useCachedPaginatedList.ts`，统一处理“先读缓存再刷新”的分页加载语义
+  - 推荐页、全部应用页、排行榜页接入内置前三页 seed，首屏优先展示缓存数据
+  - 自定义分类页按 `menuCode/filter/sortType/repoName/arch` 维度写入并读取本地缓存
+  - 新增 `scripts/generate_app_list_seeds.py` 与 `generate:app-list-seeds` 脚本，用匿名接口刷新仓库内置列表数据
+
+### 修复
+- 修复排行榜页 tab key 与请求判断不一致的问题，避免“最新上架”错误命中下载榜接口并被缓存固化
+
 ## [2.3.1] - 2026-03-10
 
 ### 修复

@@ -3,9 +3,11 @@ import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import styles from './index.module.scss'
 import { getWelcomeCarouselList, getWelcomeAppList } from '@/apis/apps/index'
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGlobalStore } from '@/stores/global'
-import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { useCachedPaginatedList } from '@/hooks/useCachedPaginatedList'
+import { useKeepAliveVisibility } from '@/hooks/useKeepAliveVisibility'
+import { getBestAppListCache, writeRuntimeAppListCache } from '@/services/appListCache'
 
 type AppInfo = API.APP.AppMainDto
 const defaultPageSize = 10 // 每页显示数量
@@ -13,9 +15,20 @@ const defaultPageSize = 10 // 每页显示数量
 const Recommend = () => {
   const arch = useGlobalStore((state) => state.arch)
   const repoName = useGlobalStore((state) => state.repoName)
+  const { isVisible } = useKeepAliveVisibility()
 
   const [carouselList, setCarouselList] = useState<AppInfo[]>([])
   const listRef = useRef<HTMLDivElement>(null)
+  const carouselCacheDescriptor = useMemo(() => ({
+    scope: 'recommend-carousel' as const,
+    repoName,
+    arch,
+  }), [repoName, arch])
+  const listCacheDescriptor = useMemo(() => ({
+    scope: 'recommend-main' as const,
+    repoName,
+    arch,
+  }), [repoName, arch])
 
   const fetcher = useCallback(async(pageNo: number) => {
     const res = await getWelcomeAppList({ repoName, arch, pageNo, pageSize: defaultPageSize })
@@ -27,29 +40,48 @@ const Recommend = () => {
     loading,
     initialLoading,
     hasMore,
-    loadPage,
-  } = usePaginatedList<AppInfo>({
+  } = useCachedPaginatedList<AppInfo>({
+    cacheDescriptor: listCacheDescriptor,
     fetcher,
     containerRef: listRef as React.RefObject<HTMLDivElement>,
     pageSize: defaultPageSize,
+    enabled: isVisible,
   })
 
-  // 首屏：并行获取轮播图 + 第一页推荐
   useEffect(() => {
+    const cacheHit = getBestAppListCache(carouselCacheDescriptor)
+    if (cacheHit) {
+      setCarouselList(cacheHit.snapshot.records as AppInfo[])
+      return
+    }
+
+    setCarouselList([])
+  }, [carouselCacheDescriptor])
+
+  useEffect(() => {
+    if (!isVisible) {
+      return
+    }
+
     const fetchCarousel = async() => {
       try {
         const result = await getWelcomeCarouselList({ repoName, arch })
-        if (result.code === 200 && result.data?.length > 0) {
-          setCarouselList(result.data as AppInfo[])
-        }
+        const records = (result.data || []) as AppInfo[]
+        setCarouselList(records)
+        writeRuntimeAppListCache(carouselCacheDescriptor, {
+          updatedAt: new Date().toISOString(),
+          pageSize: Math.max(records.length, 1),
+          cachedPages: 1,
+          totalPages: 1,
+          records,
+        })
       } catch (error) {
         console.error('Failed to fetch carousel data:', error)
       }
     }
 
     fetchCarousel()
-    loadPage(1, true)
-  }, [repoName, arch, loadPage])
+  }, [arch, carouselCacheDescriptor, isVisible, repoName])
 
   return (
     <div className={styles.recommend} ref={listRef} >

@@ -257,6 +257,7 @@ src-tauri/
 - 卸载逻辑统一：使用 `useAppUninstall`（封装确认弹窗、调用卸载 API、`removeApp`、剩余版本判断、`checkUpdates(true)` 刷新红点/更新列表，支持 `skipConfirm` 等配置），页面/组件只调用一个 `uninstall(appInfo, options)`，不再各自写弹窗或重复触发更新。
 - 菜单红点统一：侧边栏红点通过 `useMenuBadges` 集中定义 `menuPath → count` 映射，`Sidebar` 只渲染 Badge；新增红点只需在该 hook 增加 selector。
 - 列表分页统一：带无限滚动的应用列表页统一复用 `useAutoLoadWhenNotScrollable`，同时处理“滚动触底加载”和“内容未撑满容器时自动补页（含窗口尺寸变化）”；页面仅维护 `loading/hasMore/onLoadMore`，避免各页重复监听滚动并出现无滚动无法翻页问题。
+- 列表缓存统一：应用列表缓存必须集中在 `src/services/appListCache/`，通过 seed 数据 + 运行时本地缓存 + 页面可见态后台刷新组成混合方案；页面层只传 cache key / fetcher，不允许各页自行拼接 localStorage 逻辑或手写缓存副作用。
 - 列表分页状态机稳定性：`usePaginatedList` 内部的 `loadPage` 必须保持稳定引用，禁止把 `loading` 这类瞬时状态直接作为 `useCallback` 依赖；筛选切换、搜索重置等首屏重载场景需通过请求代次废弃旧响应，避免骨架屏和 `ApplicationCard` 来回闪烁。
 - 列表首屏加载统一：应用列表首屏优先使用 `ApplicationCardSkeleton` 展示骨架屏，禁止再通过 `generateEmptyCards` 注入假卡片触发默认图标/默认文案；分页追加时保留列表底部“加载中...”提示。
 - KeepAlive 页面可见态统一：保活页面的副作用统一通过 `useKeepAliveVisibility` 感知当前页面是否处于激活态；隐藏页面禁止继续运行自动分页、`ResizeObserver`、滚动监听等持续性副作用，避免侧边菜单切换后后台页面继续补页或监听导致卡顿。
@@ -450,6 +451,7 @@ v2.0.0 从 Electron 迁移到 Tauri。主要变更：
 - KeepAlive 可见性治理：`KeepAliveOutlet` 统一为页面注入可见态上下文，`useAutoLoadWhenNotScrollable` 与保活页监听逻辑必须在页面隐藏时停用，避免隐藏列表页继续触发自动补页、滚动监听和尺寸观察
 - 列表首屏闪烁修复：`usePaginatedList` 统一改为稳定 `loadPage` + 请求代次控制；页面禁止依赖 `loading` 驱动首屏重新加载，避免应用列表页骨架屏、`ApplicationCard` 和关联浮层反复卸载重建
 - Modal 阴影治理：全局覆盖 `.ant-modal-content` 的单层阴影和细边框，消除桌面端多层阴影叠加导致的发脏和重影
+- 列表混合缓存：推荐页、全部应用默认页、排行榜页通过构建期 seed 提供首屏内置前三页；运行时缓存统一写入 `src/services/appListCache/` 对应 key，`custom_category` 仅按参数做本地缓存；保活页面重新可见时要触发后台刷新并热更新当前列表
 
 ## 关键参考文件
 - **类型系统**：`src/types/common.d.ts`、`src/types/api/common.d.ts`

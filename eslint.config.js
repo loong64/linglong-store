@@ -15,6 +15,7 @@ export default [
       'public',
       'src-tauri/target/**/*',
       'src-tauri/gen/**/*',
+      'src/services/appListCache/seeds/appListSeeds.ts',
       '.vscode',
       '.idea',
       '.env',

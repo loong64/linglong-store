@@ -1,25 +1,46 @@
 import styles from './index.module.scss'
 import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { getAppListByCategoryIds, getRecommendAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import { Select, Checkbox, Empty, type CheckboxProps } from 'antd'
 import { useParams } from 'react-router-dom'
-import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { useCachedPaginatedList } from '@/hooks/useCachedPaginatedList'
+import { useKeepAliveVisibility } from '@/hooks/useKeepAliveVisibility'
+import { getBestAppListCache, writeRuntimeAppListCache } from '@/services/appListCache'
 const defaultPageSize = 30 // 每页显示数量
 type AppInfo = API.APP.AppMainDto
 const OfficeApps = () => {
   const { arch, repoName, customMenuCategory } = useGlobalStore()
+  const { isVisible } = useKeepAliveVisibility()
   const [recommendAppList, setRecommendAppList] = useState<AppInfo[]>([])
   const listRef = useRef<HTMLDivElement>(null)
-  const skipFilterSortEffectRef = useRef(true)
   const { code } = useParams()
   const currentCategory = customMenuCategory.find(item => item.code === code)
   const categoryIds = currentCategory?.categoryIds ?? []
   const name = currentCategory?.name ?? ''
   const [filter, setFilter] = useState<boolean>(false) // 是否过滤低分应用
   const [sortType, setSortType] = useState<string>('createTime') // 排序类型
+  const recommendCacheDescriptor = useMemo(() => ({
+    scope: 'custom-category-recommend' as const,
+    repoName,
+    arch,
+    params: {
+      menuCode: code || '',
+      categoryId: categoryIds.join(','),
+    },
+  }), [arch, categoryIds, code, repoName])
+  const listCacheDescriptor = useMemo(() => ({
+    scope: 'custom-category-main' as const,
+    repoName,
+    arch,
+    params: {
+      menuCode: code || '',
+      filter,
+      sortType,
+    },
+  }), [arch, code, filter, repoName, sortType])
 
   // 处理过滤低分应用的change事件
   const handleFilterChange:CheckboxProps['onChange'] = (e) => {
@@ -29,24 +50,6 @@ const OfficeApps = () => {
   const handleSortTypeChange = (value: string) => {
     setSortType(value)
   }
-
-  // 获取推荐应用
-  const getHeaderRecommendAppList = useCallback(async() => {
-    const params = {
-      repoName,
-      arch,
-      pageNo: 1,
-      pageSize: 5,
-      categoryId: categoryIds.join(','),
-    }
-    try {
-      const res = await getRecommendAppList(params)
-      setRecommendAppList(res.data || [])
-    } catch (error) {
-      console.error('获取推荐应用列表失败:', error)
-      setRecommendAppList([])
-    }
-  }, [repoName, arch, categoryIds])
 
   const fetcher = useCallback(async(pageNo: number) => {
     const res = await getAppListByCategoryIds({
@@ -66,27 +69,60 @@ const OfficeApps = () => {
     loading,
     initialLoading,
     hasMore,
-    loadPage,
-  } = usePaginatedList<AppInfo>({
+  } = useCachedPaginatedList<AppInfo>({
+    cacheDescriptor: listCacheDescriptor,
     fetcher,
     containerRef: listRef as React.RefObject<HTMLDivElement>,
     pageSize: defaultPageSize,
+    enabled: isVisible,
   })
 
-  // 初始化获取数据
   useEffect(() => {
-    loadPage(1, true)
-    getHeaderRecommendAppList().catch(() => undefined)
-  }, [code, loadPage, getHeaderRecommendAppList])
-
-  // 监听 filter 和 sortType 参数变化
-  useEffect(() => {
-    if (skipFilterSortEffectRef.current) {
-      skipFilterSortEffectRef.current = false
+    const cacheHit = getBestAppListCache(recommendCacheDescriptor)
+    if (cacheHit) {
+      setRecommendAppList(cacheHit.snapshot.records as AppInfo[])
       return
     }
-    loadPage(1, true)
-  }, [filter, sortType, loadPage])
+
+    setRecommendAppList([])
+  }, [recommendCacheDescriptor])
+
+  useEffect(() => {
+    if (!isVisible) {
+      return
+    }
+
+    if (categoryIds.length === 0) {
+      setRecommendAppList([])
+      return
+    }
+
+    const getHeaderRecommendAppList = async() => {
+      const params = {
+        repoName,
+        arch,
+        pageNo: 1,
+        pageSize: 5,
+        categoryId: categoryIds.join(','),
+      }
+      try {
+        const res = await getRecommendAppList(params)
+        const records = (res.data || []) as AppInfo[]
+        setRecommendAppList(records)
+        writeRuntimeAppListCache(recommendCacheDescriptor, {
+          updatedAt: new Date().toISOString(),
+          pageSize: Math.max(records.length, 1),
+          cachedPages: 1,
+          totalPages: 1,
+          records,
+        })
+      } catch (error) {
+        console.error('获取推荐应用列表失败:', error)
+      }
+    }
+
+    getHeaderRecommendAppList().catch(() => undefined)
+  }, [arch, categoryIds, isVisible, recommendCacheDescriptor, repoName])
 
   return <div className={styles.officeAppsPage} ref={listRef} >
     <div className={styles.search} >

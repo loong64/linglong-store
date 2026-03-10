@@ -3,11 +3,11 @@ import { Button } from 'antd'
 import { DoubleUp, DoubleDown } from '@icon-park/react'
 import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { debounce, throttle } from '@/utils/performance'
 import { getDisCategoryList, getSearchAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
-import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { useCachedPaginatedList } from '@/hooks/useCachedPaginatedList'
 import { useKeepAliveVisibility } from '@/hooks/useKeepAliveVisibility'
 
 const defaultPageSize = 30 // 每页显示数量
@@ -23,6 +23,14 @@ const AllApps = () => {
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [categoryList, setCategoryList] = useState<Category[]>([])
   const listRef = useRef<HTMLDivElement>(null)
+  const cacheDescriptor = useMemo(() => ({
+    scope: 'all-apps-main' as const,
+    repoName,
+    arch,
+    params: {
+      categoryId: activeCategory,
+    },
+  }), [activeCategory, repoName, arch])
 
   const fetcher = useCallback(async(pageNo: number) => {
     const res = await getSearchAppList({
@@ -40,12 +48,13 @@ const AllApps = () => {
     loading,
     initialLoading,
     hasMore,
-    loadPage,
-  } = usePaginatedList<AppInfo>({
+  } = useCachedPaginatedList<AppInfo>({
+    cacheDescriptor,
     fetcher,
     containerRef: listRef as React.RefObject<HTMLDivElement>,
     pageSize: defaultPageSize,
     extraDeps: [activeCategory],
+    enabled: isVisible,
   })
 
   // 获取分类列表
@@ -77,7 +86,6 @@ const AllApps = () => {
 
     setActiveCategory(categoryId)
     setTabOpen(true)
-    // loadPage 将在 fetcher 更新（activeCategory 变化）后由 useEffect 触发
   }
 
   // 设置分类展开或者折叠
@@ -90,11 +98,6 @@ const AllApps = () => {
   useEffect(() => {
     getCategoryList()
   }, [])
-
-  // activeCategory 或 fetcher 变化时重新加载
-  useEffect(() => {
-    loadPage(1, true)
-  }, [loadPage])
 
   // 监听窗口 resize 事件，调整分类栏高度
   const [tabHeight, setTabHeight] = useState(0)
