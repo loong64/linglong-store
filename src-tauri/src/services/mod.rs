@@ -41,3 +41,12 @@ pub fn ll_cli_command() -> Command {
     apply_english_locale_env_to_command(&mut cmd);
     cmd
 }
+
+/// 创建异步 ll-cli Command（tokio），英文 locale 环境
+pub fn ll_cli_async_command() -> tokio::process::Command {
+    let mut cmd = tokio::process::Command::new("ll-cli");
+    for (key, value) in ENGLISH_LOCALE_ENV {
+        cmd.env(key, value);
+    }
+    cmd
+}
