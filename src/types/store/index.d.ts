@@ -107,6 +107,9 @@ declare namespace Store {
     /** 已安装应用列表（经 API 丰富后） */
     installedApps: API.INVOKE.EnrichedInstalledApp[];
 
+    /** O(1) 查找已安装应用：appId → 最新版本应用信息 */
+    installedAppMap: ReadonlyMap<string, API.INVOKE.EnrichedInstalledApp>;
+
     /**
      * 获取已安装应用列表
      * @param includeBaseService - 是否包含基础服务，默认为 false
