@@ -1,14 +1,12 @@
 import styles from './index.module.scss'
 import { Button } from 'antd'
 import { DoubleUp, DoubleDown } from '@icon-park/react'
-import ApplicationCard from '@/components/ApplicationCard'
+import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { getDisCategoryList, getSearchAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
-import { OperateType } from '@/constants/applicationCard'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
-import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 import { useKeepAliveVisibility } from '@/hooks/useKeepAliveVisibility'
 
 const defaultPageSize = 30 // 每页显示数量
@@ -20,7 +18,6 @@ type AppInfo = API.APP.AppMainDto
 const AllApps = () => {
   const arch = useGlobalStore((state) => state.arch)
   const repoName = useGlobalStore((state) => state.repoName)
-  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
   const { isVisible } = useKeepAliveVisibility()
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [categoryList, setCategoryList] = useState<Category[]>([])
@@ -183,21 +180,12 @@ const AllApps = () => {
       ) : (
         <>
           {
-            allAppList.map((item, index) => {
-              const cardState = getCardState(item)
-              return (
-                <ApplicationCard
-                  key={`${item.appId}_${index}`}
-                  appInfo={item}
-                  operateId={OperateType.INSTALL}
-                  isInstalled={cardState.isInstalled}
-                  hasUpdate={cardState.hasUpdate}
-                  isInstalling={cardState.isInstalling}
-                  onInstall={handleInstall}
-                  onUninstall={uninstall}
-                />
-              )
-            })
+            allAppList.map((item, index) => (
+              <ConnectedApplicationCard
+                key={`${item.appId}_${index}`}
+                appInfo={item}
+              />
+            ))
           }
           {loading && <div className={styles.loadingTip}>加载中...</div>}
           {!hasMore && allAppList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}

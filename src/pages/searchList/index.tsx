@@ -1,12 +1,11 @@
 import styles from './index.module.scss'
-import ApplicationCard from '@/components/ApplicationCard'
+import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import { useGlobalStore, useSearchStore } from '@/stores/global'
 import { getSearchAppList } from '@/apis/apps/index'
 import { useEffect, useRef, useCallback } from 'react'
 import { Empty } from 'antd'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
-import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 const defaultPageSize = 10 // 每页显示数量
 
 type AppInfo = API.APP.AppMainDto
@@ -14,7 +13,6 @@ const SearchList = ()=>{
   const keyword = useSearchStore((state) => state.keyword)
   const arch = useGlobalStore((state) => state.arch)
   const repoName = useGlobalStore((state) => state.repoName)
-  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
   const listRef = useRef<HTMLDivElement>(null)
 
   const fetcher = useCallback(async(pageNo: number) => {
@@ -55,21 +53,12 @@ const SearchList = ()=>{
     <p className={styles.SearchResult}>搜索结果：</p>
     <div className={initialLoading || searchAppList.length > 0 ? styles.SearchList : styles.SearchListEmpty}>
       {
-        initialLoading ? <ApplicationCardSkeleton count={defaultPageSize} /> : searchAppList.length > 0 ? searchAppList.map((item, index) => {
-          const cardState = getCardState(item)
-          return (
-            <ApplicationCard
-              key={`${item.appId}_${index}`}
-              appInfo={item}
-              operateId={1}
-              isInstalled={cardState.isInstalled}
-              hasUpdate={cardState.hasUpdate}
-              isInstalling={cardState.isInstalling}
-              onInstall={handleInstall}
-              onUninstall={uninstall}
-            />
-          )
-        }) : <Empty description="没有搜索到数据哦！"/>
+        initialLoading ? <ApplicationCardSkeleton count={defaultPageSize} /> : searchAppList.length > 0 ? searchAppList.map((item, index) => (
+          <ConnectedApplicationCard
+            key={`${item.appId}_${index}`}
+            appInfo={item}
+          />
+        )) : <Empty description="没有搜索到数据哦！"/>
       }
       {!initialLoading && loading && <div className={styles.loadingTip}>加载中...</div>}
       {!initialLoading && !loading && !hasMore && searchAppList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}

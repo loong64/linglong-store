@@ -1,12 +1,11 @@
 import { Tabs } from 'antd'
-import ApplicationCard from '@/components/ApplicationCard'
+import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import { getNewAppList, getInstallAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import styles from './index.module.scss'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
-import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 
 const defaultPageSize = 10 // 每页显示数量
 
@@ -14,7 +13,6 @@ type AppInfo = API.APP.AppMainDto
 const Ranking = () => {
   const arch = useGlobalStore((state) => state.arch)
   const repoName = useGlobalStore((state) => state.repoName)
-  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
   const [activeTab, setActiveTab] = useState('101')
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -68,21 +66,12 @@ const Ranking = () => {
           <ApplicationCardSkeleton count={defaultPageSize} />
         ) : (
           <>
-            {RankList.map((item, index) => {
-              const cardState = getCardState(item)
-              return (
-                <ApplicationCard
-                  key={`${item.appId}_${index}`}
-                  appInfo={item}
-                  operateId={1}
-                  isInstalled={cardState.isInstalled}
-                  hasUpdate={cardState.hasUpdate}
-                  isInstalling={cardState.isInstalling}
-                  onInstall={handleInstall}
-                  onUninstall={uninstall}
-                />
-              )
-            })}
+            {RankList.map((item, index) => (
+              <ConnectedApplicationCard
+                key={`${item.appId}_${index}`}
+                appInfo={item}
+              />
+            ))}
             {loading && <div className={styles.loadingTip}>加载中...</div>}
             {!hasMore && RankList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
           </>

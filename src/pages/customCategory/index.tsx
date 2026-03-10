@@ -1,19 +1,16 @@
 import styles from './index.module.scss'
-import ApplicationCard from '@/components/ApplicationCard'
+import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { getAppListByCategoryIds, getRecommendAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
-import { OperateType } from '@/constants/applicationCard'
 import { Select, Checkbox, Empty, type CheckboxProps } from 'antd'
 import { useParams } from 'react-router-dom'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
-import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 const defaultPageSize = 30 // 每页显示数量
 type AppInfo = API.APP.AppMainDto
 const OfficeApps = () => {
   const { arch, repoName, customMenuCategory } = useGlobalStore()
-  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
   const [recommendAppList, setRecommendAppList] = useState<AppInfo[]>([])
   const listRef = useRef<HTMLDivElement>(null)
   const skipFilterSortEffectRef = useRef(true)
@@ -111,22 +108,15 @@ const OfficeApps = () => {
     </div>
     <div className={styles.recommendApplicationList} style={{ marginTop: !initialLoading && recommendAppList.length > 0 ? '3rem' : 0 }}>
       {
-        !initialLoading && recommendAppList.map((item, index) => {
-          const cardState = getCardState(item)
-          return index < 3 && (
-            <ApplicationCard
+        !initialLoading && recommendAppList.map((item, index) => (
+          index < 3 && (
+            <ConnectedApplicationCard
               type="recommend"
               key={`${item.appId}_${index}`}
               appInfo={item}
-              operateId={OperateType.INSTALL}
-              isInstalled={cardState.isInstalled}
-              hasUpdate={cardState.hasUpdate}
-              isInstalling={cardState.isInstalling}
-              onInstall={handleInstall}
-              onUninstall={uninstall}
             />
           )
-        })
+        ))
       }
     </div>
     <div className={styles.applicationList}>
@@ -135,21 +125,12 @@ const OfficeApps = () => {
       ) : allAppList.length > 0 ? (
         <>
           {
-            allAppList.map((item, index) => {
-              const cardState = getCardState(item)
-              return (
-                <ApplicationCard
-                  key={`${item.appId}_${index}`}
-                  appInfo={item}
-                  operateId={OperateType.INSTALL}
-                  isInstalled={cardState.isInstalled}
-                  hasUpdate={cardState.hasUpdate}
-                  isInstalling={cardState.isInstalling}
-                  onInstall={handleInstall}
-                  onUninstall={uninstall}
-                />
-              )
-            })
+            allAppList.map((item, index) => (
+              <ConnectedApplicationCard
+                key={`${item.appId}_${index}`}
+                appInfo={item}
+              />
+            ))
           }
           {loading && <div className={styles.loadingTip}>加载中...</div>}
           {!loading && !hasMore && <div className={styles.noMoreTip}>没有更多数据了</div>}

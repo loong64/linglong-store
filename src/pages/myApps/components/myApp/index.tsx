@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { Empty } from 'antd'
 import styles from './index.module.scss'
-import ApplicationCard from '@/components/ApplicationCard'
+import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import { useInstalledAppsStore } from '@/stores/installedApps'
-import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 // import { useConfigStore } from '@/stores/appConfig'
 // import { uninstallApp } from '@/apis/invoke'
 
@@ -15,7 +14,6 @@ const MyApplications = () => {
     installedApps,
     // fetchInstalledApps,
   } = useInstalledAppsStore()
-  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
 
   // const { showBaseService } = useConfigStore()
   const [mergedApps, setMergedApps] = useState<MergedApp[]>([])
@@ -111,21 +109,13 @@ const MyApplications = () => {
       {/* <div className={styles.title}>我的应用</div> */}
       {mergedApps.length > 0 ? <div className={styles.applicationList}>
         {
-          mergedApps.map((item, index) => {
-            const cardState = getCardState(item)
-            return (
-              <ApplicationCard
-                key={`${item.appId}_${index}`}
-                appInfo={item}
-                operateId={0}
-                isInstalled={cardState.isInstalled}
-                hasUpdate={cardState.hasUpdate}
-                isInstalling={cardState.isInstalling}
-                onInstall={handleInstall}
-                onUninstall={uninstall}
-              />
-            )
-          })
+          mergedApps.map((item, index) => (
+            <ConnectedApplicationCard
+              key={`${item.appId}_${index}`}
+              appInfo={item}
+              operateId={0}
+            />
+          ))
         }
       </div> : <Empty description="暂无已安装应用" />}
     </div>
