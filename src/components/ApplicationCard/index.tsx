@@ -87,7 +87,7 @@ const ApplicationCard = ({
         ...appInfo,
       },
     })
-    }, [navigate, appInfo])
+  }, [navigate, appInfo])
 
   // 处理操作按钮点击
   const handleOperateClick = useCallback((e: React.MouseEvent<HTMLElement>) => {

@@ -3,7 +3,7 @@
  * 封装 pageNo / totalPages / loading / initialLoading / items 以及自动补页逻辑
  * 页面只需提供 fetcher 函数和容器 ref
  */
-import { useState, useCallback, type RefObject } from 'react'
+import { useState, useCallback, useRef, type RefObject } from 'react'
 import { useAutoLoadWhenNotScrollable } from './useAutoLoadWhenNotScrollable'
 
 /** fetcher 返回的分页结果 */
@@ -35,6 +35,8 @@ export function usePaginatedList<T>({
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  // 使用 ref 做请求并发守卫，避免 loadPage 因 loading 状态变化而反复变更引用，触发页面首屏循环加载
+  const loadingRef = useRef(false)
 
   const hasMore = pageNo < totalPages
 
@@ -44,10 +46,11 @@ export function usePaginatedList<T>({
    * @param init 是否为首屏（重置列表）
    */
   const loadPage = useCallback(async(page: number, init = false) => {
-    if (loading) {
+    if (loadingRef.current) {
       return
     }
 
+    loadingRef.current = true
     setLoading(true)
     if (init) {
       setInitialLoading(true)
@@ -75,9 +78,10 @@ export function usePaginatedList<T>({
       if (init) {
         setInitialLoading(false)
       }
+      loadingRef.current = false
       setLoading(false)
     }
-  }, [fetcher, loading])
+  }, [fetcher])
 
   /** 加载下一页 */
   const loadNextPage = useCallback(() => {
