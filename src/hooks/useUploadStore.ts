@@ -39,7 +39,7 @@ function getGiteeAlova() {
   if (!_giteeAlova) {
     _giteeAlova = createGiteeAlova()
   }
-  return _giteeAlova!
+  return _giteeAlova
 }
 
 /**
@@ -483,4 +483,3 @@ export function useUpdateStore() {
     getDownloadUrl,
   }
 }
-

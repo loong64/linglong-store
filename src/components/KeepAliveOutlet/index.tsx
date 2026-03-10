@@ -71,9 +71,11 @@ const KeepAliveOutlet = () => {
     cacheRef.current.set(currentPath, outlet)
   } else if (shouldCache && cacheRef.current.has(currentPath)) {
     // LRU 更新：命中缓存时将其移到 Map 尾部（最近访问）
-    const cached = cacheRef.current.get(currentPath)!
-    cacheRef.current.delete(currentPath)
-    cacheRef.current.set(currentPath, cached)
+    const cached = cacheRef.current.get(currentPath)
+    if (cached) {
+      cacheRef.current.delete(currentPath)
+      cacheRef.current.set(currentPath, cached)
+    }
   }
 
   return (

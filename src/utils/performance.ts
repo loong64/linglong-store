@@ -9,7 +9,7 @@
  * @param delay 延迟毫秒数
  * @returns 带 cancel() 方法的防抖函数
  */
-export function debounce<T extends (...args: Parameters<T>) => void>(
+export function debounce<T extends(...args: Parameters<T>) => void>(
   fn: T,
   delay: number,
 ): T & { cancel: () => void } {
@@ -41,7 +41,7 @@ export function debounce<T extends (...args: Parameters<T>) => void>(
  * @param interval 节流间隔毫秒数
  * @returns 带 cancel() 方法的节流函数
  */
-export function throttle<T extends (...args: Parameters<T>) => void>(
+export function throttle<T extends(...args: Parameters<T>) => void>(
   fn: T,
   interval: number,
 ): T & { cancel: () => void } {

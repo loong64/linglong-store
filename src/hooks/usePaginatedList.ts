@@ -3,7 +3,7 @@
  * 封装 pageNo / totalPages / loading / initialLoading / items 以及自动补页逻辑
  * 页面只需提供 fetcher 函数和容器 ref
  */
-import { useState, useCallback, type RefObject } from 'react'
+import { useState, useCallback, useRef, type RefObject } from 'react'
 import { useAutoLoadWhenNotScrollable } from './useAutoLoadWhenNotScrollable'
 
 /** fetcher 返回的分页结果 */
@@ -35,6 +35,10 @@ export function usePaginatedList<T>({
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  // 通过 ref 做同步并发保护，避免 loading 状态变化导致 loadPage 引用抖动。
+  const loadingRef = useRef(false)
+  // 递增请求代次，确保筛选条件切换后只消费最后一次请求结果。
+  const requestVersionRef = useRef(0)
 
   const hasMore = pageNo < totalPages
 
@@ -44,10 +48,14 @@ export function usePaginatedList<T>({
    * @param init 是否为首屏（重置列表）
    */
   const loadPage = useCallback(async(page: number, init = false) => {
-    if (loading) {
+    // 分页追加保持串行；首屏重载允许抢占旧请求，并在完成后覆盖旧结果。
+    if (loadingRef.current && !init) {
       return
     }
 
+    const requestVersion = requestVersionRef.current + 1
+    requestVersionRef.current = requestVersion
+    loadingRef.current = true
     setLoading(true)
     if (init) {
       setInitialLoading(true)
@@ -56,6 +64,10 @@ export function usePaginatedList<T>({
 
     try {
       const result = await fetcher(page)
+      if (requestVersion !== requestVersionRef.current) {
+        return
+      }
+
       const newRecords = result.records ?? []
 
       if (init) {
@@ -67,17 +79,25 @@ export function usePaginatedList<T>({
       setTotalPages(result.pages || 1)
       setPageNo(page)
     } catch (error) {
+      if (requestVersion !== requestVersionRef.current) {
+        return
+      }
+
       console.error('[usePaginatedList] 加载失败:', error)
       if (init) {
         setItems([])
       }
     } finally {
-      if (init) {
-        setInitialLoading(false)
+      // 仅最后一次有效请求可以收尾，避免旧请求在 finally 中反向覆盖新状态。
+      if (requestVersion === requestVersionRef.current) {
+        if (init) {
+          setInitialLoading(false)
+        }
+        setLoading(false)
+        loadingRef.current = false
       }
-      setLoading(false)
     }
-  }, [fetcher, loading])
+  }, [fetcher])
 
   /** 加载下一页 */
   const loadNextPage = useCallback(() => {
@@ -89,9 +109,13 @@ export function usePaginatedList<T>({
 
   /** 重置到初始状态（不触发请求） */
   const reset = useCallback(() => {
+    // 重置时废弃所有未完成请求，避免旧结果在 reset 后回写列表。
+    requestVersionRef.current += 1
+    loadingRef.current = false
     setItems([])
     setPageNo(1)
     setTotalPages(1)
+    setLoading(false)
     setInitialLoading(true)
   }, [])
 
