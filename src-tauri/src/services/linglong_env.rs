@@ -1,14 +1,11 @@
-use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::io::Write;
-use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::process::Command as AsyncCommand;
 use crate::services::executor;
+use crate::services::linglong_env_parser::{
+    parse_repo_output, parse_ll_version, parse_glibc_version, compare_versions,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -36,83 +33,6 @@ pub struct LinglongEnvCheckResult {
     pub is_container: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct InstallLinglongResult {
-    pub stdout: String,
-    pub stderr: String,
-}
-
-fn parse_repo_output(output: &str) -> LinglongEnvCheckResult {
-    let lines: Vec<&str> = output.lines().filter(|l| !l.trim().is_empty()).collect();
-    if lines.is_empty() {
-        return LinglongEnvCheckResult {
-            ok: false,
-            reason: Some("未检测到仓库信息".to_string()),
-            ..Default::default()
-        };
-    }
-
-    let default_repo = lines
-        .get(0)
-        .and_then(|l| l.split(':').nth(1))
-        .map(|s| s.trim().to_string());
-    let repo_lines = if lines.len() > 2 { &lines[2..] } else { &[] };
-    let mut repos = Vec::new();
-    for line in repo_lines {
-        let parts: Vec<&str> = line.trim().split_whitespace().collect();
-        if parts.is_empty() {
-            continue;
-        }
-        let name = parts.get(0).unwrap_or(&"").to_string();
-        let url = parts.get(1).unwrap_or(&"").to_string();
-        let alias = parts.get(2).map(|s| s.to_string());
-        let priority = parts.get(3).map(|s| s.to_string());
-        repos.push(LinglongRepo {
-            name,
-            url,
-            alias,
-            priority,
-        });
-    }
-
-    LinglongEnvCheckResult {
-        ok: repos.len() > 0,
-        reason: None,
-        repo_name: default_repo,
-        repos,
-        ..Default::default()
-    }
-}
-
-fn parse_ll_version(raw: &str) -> Option<String> {
-    if raw.trim().is_empty() {
-        return None;
-    }
-    if let Ok(json) = serde_json::from_str::<HashMap<String, String>>(raw) {
-        if let Some(v) = json.get("version") {
-            return Some(v.trim().to_string());
-        }
-    }
-    let cleaned = raw.trim();
-    let mut version = None;
-    // 提取连续的版本号片段（仅数字和 .）
-    if let Some(seg) = cleaned
-        .split(|c: char| !(c.is_ascii_digit() || c == '.'))
-        .find(|seg| seg.contains('.'))
-    {
-        if !seg.is_empty() {
-            version = Some(seg.to_string());
-        }
-    }
-
-    if version.is_none() {
-        None
-    } else {
-        version
-    }
-}
-
 pub async fn get_ll_cli_version() -> Result<String, String> {
     let output = executor::execute(&["--json", "--version"], "version").await?;
 
@@ -123,50 +43,6 @@ pub async fn get_ll_cli_version() -> Result<String, String> {
     }
 
     Err("无法解析玲珑版本，请确认 ll-cli 可用".to_string())
-}
-
-fn parse_glibc_version(raw: &str) -> Option<String> {
-    if raw.trim().is_empty() {
-        return None;
-    }
-    // 取首行，避免多余信息干扰
-    let first_line = raw.lines().next().unwrap_or("").trim();
-    if first_line.is_empty() {
-        return None;
-    }
-
-    // 尝试从首行中找到形如 2.35 的片段
-    if let Some(token) = first_line
-        .split_whitespace()
-        .rev()
-        .find(|part| part.chars().all(|c| c.is_ascii_digit() || c == '.'))
-    {
-        if token.contains('.') {
-            return Some(token.to_string());
-        }
-    }
-
-    Some(first_line.to_string())
-}
-
-fn compare_versions(v1: &str, v2: &str) -> std::cmp::Ordering {
-    let to_parts = |v: &str| -> Vec<i32> {
-        v.split(|c| c == '.' || c == '-' || c == '_')
-            .filter_map(|p| p.parse::<i32>().ok())
-            .collect()
-    };
-    let a = to_parts(v1);
-    let b = to_parts(v2);
-    let len = a.len().max(b.len());
-    for i in 0..len {
-        let av = *a.get(i).unwrap_or(&0);
-        let bv = *b.get(i).unwrap_or(&0);
-        match av.cmp(&bv) {
-            std::cmp::Ordering::Equal => continue,
-            ord => return ord,
-        }
-    }
-    std::cmp::Ordering::Equal
 }
 
 pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckResult, String> {
@@ -348,62 +224,4 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
 
     result.ok = true;
     Ok(result)
-}
-
-pub async fn install_linglong_env(script_content: String) -> Result<InstallLinglongResult, String> {
-    if script_content.trim().is_empty() {
-        return Err("安装脚本内容为空".to_string());
-    }
-    let script = script_content.clone();
-    let handle = tokio::task::spawn_blocking(move || -> Result<InstallLinglongResult, String> {
-        let file_name = format!(
-            "install-linglong-{}.sh",
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map_err(|e| format!("获取时间失败: {}", e))?
-                .as_millis()
-        );
-        let mut path = PathBuf::from(std::env::temp_dir());
-        path.push(file_name);
-
-        {
-            let mut file = fs::File::create(&path)
-                .map_err(|e| format!("创建安装脚本失败: {}", e))?;
-            file.write_all(script.as_bytes())
-                .map_err(|e| format!("写入安装脚本失败: {}", e))?;
-        }
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o755))
-            .map_err(|e| format!("设置脚本权限失败: {}", e))?;
-
-        info!("[install_linglong_env] executing script at {:?}", path);
-        let output = Command::new("pkexec")
-            .arg("bash")
-            .arg(&path)
-            .output()
-            .map_err(|e| format!("执行安装脚本失败: {}", e))?;
-
-        if !output.status.success() {
-            warn!(
-                "[install_linglong_env] script failed with code {:?}",
-                output.status.code()
-            );
-            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            return Err(format!(
-                "安装失败(code {:?}): {}",
-                output.status.code(),
-                stderr
-            ));
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        // 清理脚本文件
-        let _ = fs::remove_file(&path);
-        Ok(InstallLinglongResult { stdout, stderr })
-    });
-
-    handle
-        .await
-        .map_err(|e| format!("安装任务执行失败: {}", e))?
 }
