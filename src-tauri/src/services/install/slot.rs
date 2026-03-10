@@ -21,6 +21,8 @@ pub struct InstallSlotState {
 }
 
 /// 全局安装槽位（单槽位模式）
+/// 使用 std::sync::Mutex 而非 tokio::sync::Mutex：所有方法均为同步调用，
+/// 锁范围极小且不跨越 .await 点，std::sync::Mutex 性能更优
 static INSTALL_SLOT: Lazy<Arc<Mutex<Option<InstallSlotState>>>> =
     Lazy::new(|| Arc::new(Mutex::new(None)));
 
