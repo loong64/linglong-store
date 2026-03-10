@@ -92,10 +92,8 @@ async fn is_app_running(app_id: &str) -> Result<bool, String> {
     // Skip header line
     for line in ps_string.lines().skip(1) {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        if let Some(name) = parts.first() {
-            if *name == app_id {
-                return Ok(true);
-            }
+        if parts.first() == Some(&app_id) {
+            return Ok(true);
         }
     }
     Ok(false)
