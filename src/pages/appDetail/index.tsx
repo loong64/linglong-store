@@ -11,6 +11,7 @@ import { getAppDetail, getSearchAppVersionList } from '@/apis/apps'
 import { createDesktopShortcut, runApp } from '@/apis/invoke'
 import { useInstalledAppsStore } from '@/stores/installedApps'
 import { useInstallQueueStore } from '@/stores/installQueue'
+import { useShallow } from 'zustand/react/shallow'
 import { useGlobalStore } from '@/stores/global'
 import { InstallOptions, useAppInstall } from '@/hooks/useAppInstall'
 import { useAppUninstall } from '@/hooks/useAppUninstall'
@@ -40,7 +41,9 @@ const AppDetail = () => {
 
   // 使用安装队列
   const { handleInstall, getInstallStatus, getVersionInstallState } = useAppInstall()
-  const { queue, currentTask } = useInstallQueueStore()
+  const { queue, currentTask } = useInstallQueueStore(
+    useShallow((state) => ({ queue: state.queue, currentTask: state.currentTask })),
+  )
 
   // 获取当前应用的安装状态（从队列中）
   const appInstallStatus = useMemo(() => {

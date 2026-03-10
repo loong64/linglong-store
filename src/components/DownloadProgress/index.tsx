@@ -7,6 +7,7 @@ import { useMemo, memo } from 'react'
 import DefaultIcon from '@/assets/linyaps.svg?url'
 import { Progress, Empty, message } from 'antd'
 import { useInstallQueueStore } from '@/stores/installQueue'
+import { useShallow } from 'zustand/react/shallow'
 import { runApp, cancelInstall } from '@/apis/invoke'
 import SpeedTool from '@/components/speedTool'
 /**
@@ -55,7 +56,15 @@ TaskProgressIcon.displayName = 'TaskProgressIcon'
 
 const DownloadProgress = () => {
   const [messageApi, contextHolder] = message.useMessage()
-  const { currentTask, queue, history, clearHistory, removeFromQueue } = useInstallQueueStore()
+  const { currentTask, queue, history, clearHistory, removeFromQueue } = useInstallQueueStore(
+    useShallow((state) => ({
+      currentTask: state.currentTask,
+      queue: state.queue,
+      history: state.history,
+      clearHistory: state.clearHistory,
+      removeFromQueue: state.removeFromQueue,
+    })),
+  )
 
   // 合并所有任务列表用于显示
   const allTasks = useMemo(() => {

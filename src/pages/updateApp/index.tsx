@@ -6,13 +6,16 @@ import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import { useCheckUpdates } from '@/hooks/useCheckUpdates'
 import { useAppInstall } from '@/hooks/useAppInstall'
 import { useInstallQueueStore } from '@/stores/installQueue'
+import { useShallow } from 'zustand/react/shallow'
 
 // ==================== 组件 ====================
 
 const UpdateApp = () => {
   const { loading: checking, updates, checkUpdates } = useCheckUpdates()
   const { handleBatchInstall, isAppInQueue } = useAppInstall()
-  const { queue, currentTask, isProcessing } = useInstallQueueStore()
+  const { queue, currentTask, isProcessing } = useInstallQueueStore(
+    useShallow((state) => ({ queue: state.queue, currentTask: state.currentTask, isProcessing: state.isProcessing })),
+  )
 
   // 获取正在安装/队列中的应用ID集合
   const installingAppIds = useMemo(() => {

@@ -12,12 +12,19 @@ import { useEffect } from 'react'
 import { message } from 'antd'
 import { onInstallProgress } from '@/apis/invoke'
 import { useInstallQueueStore } from '@/stores/installQueue'
+import { useShallow } from 'zustand/react/shallow'
 import { sendInstallRecord } from '@/services/analyticsService'
 import { syncAfterAppChange } from '@/utils/appChangeSync'
 import { getInstallErrorMessage, InstallErrorCode } from '@/constants/installErrorCodes'
 
 export const useGlobalInstallProgress = () => {
-  const { updateProgress, markSuccess, markFailed } = useInstallQueueStore()
+  const { updateProgress, markSuccess, markFailed } = useInstallQueueStore(
+    useShallow((state) => ({
+      updateProgress: state.updateProgress,
+      markSuccess: state.markSuccess,
+      markFailed: state.markFailed,
+    })),
+  )
   const [messageApi] = message.useMessage()
 
 
