@@ -1,7 +1,8 @@
 declare namespace API {
   namespace INVOKE {
     /**
-     * 应用主数据模型
+     * IPC DTO — 仅包含 Rust 端 `InstalledApp` 传输字段
+     * 不要在此混入前端增强字段（zhName / categoryName 等由 API 注入）
      */
     interface InstalledApp {
       appId: string;
@@ -16,10 +17,15 @@ declare namespace API {
       runtime: string;
       size: string;
       repoName: string;
+    }
+
+    /**
+     * 经 API 接口丰富后的已安装应用（Store 层使用）
+     * zhName / categoryName 来自后端 getAppDetails 接口
+     */
+    interface EnrichedInstalledApp extends InstalledApp {
       zhName?: string;
       categoryName?: string;
-      loading?: boolean;
-      occurrenceNumber?: number;
     }
 
     /**

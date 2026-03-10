@@ -24,7 +24,7 @@ interface VersionInfo extends API.APP.AppMainDto {
 const AppDetail = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const app = location.state as API.INVOKE.InstalledApp | undefined
+  const app = location.state as API.INVOKE.EnrichedInstalledApp | undefined
 
   const [versions, setVersions] = useState<VersionInfo[]>([])
 

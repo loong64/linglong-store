@@ -89,8 +89,8 @@ function mapRemoteUpdatesToStore(
       description: remoteApp.description || installedApp.description || '',
       icon: remoteApp.icon || installedApp.icon,
       arch: remoteApp.arch || installedApp.arch,
-      categoryName: remoteApp.categoryName || installedApp.categoryName,
-      zhName: remoteApp.zhName || installedApp.zhName || remoteApp.name || installedApp.name,
+      categoryName: remoteApp.categoryName,
+      zhName: remoteApp.zhName || remoteApp.name || installedApp.name,
     })
   }
 

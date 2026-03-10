@@ -104,8 +104,8 @@ declare namespace Store {
    * 管理系统中已安装的玲珑应用
    */
   interface InstalledApps {
-    /** 已安装应用列表 */
-    installedApps: API.INVOKE.InstalledApp[];
+    /** 已安装应用列表（经 API 丰富后） */
+    installedApps: API.INVOKE.EnrichedInstalledApp[];
 
     /**
      * 获取已安装应用列表
