@@ -23,6 +23,8 @@ mod operations;
 
 // 重新导出公共 API
 pub use models::InstalledApp;
+// 供 process.rs 等跨模块复用的解析工具
+pub(crate) use models::{LLCliListItem, arch_to_string};
 pub use installer::{install_linglong_app, cancel_linglong_install};
 pub use operations::{
     get_installed_apps,

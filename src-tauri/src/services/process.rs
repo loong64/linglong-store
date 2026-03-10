@@ -1,4 +1,5 @@
 use crate::services::executor;
+use crate::services::install::{LLCliListItem, arch_to_string};
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -21,17 +22,6 @@ pub struct LinglongAppInfo {
     pub container_id: String,
 }
 
-/// ll-cli list --json --type=all 输出的单个条目（仅采集所需字段）
-#[derive(Debug, Deserialize)]
-struct ListItem {
-    #[serde(alias = "id", alias = "appid", alias = "appId")]
-    app_id: Option<String>,
-    version: String,
-    arch: serde_json::Value,
-    channel: String,
-    runtime: Option<String>,
-}
-
 /// 解析 ll-cli ps 的文本输出，返回 (appId, containerId, pid) 三元组列表
 fn parse_ps_output(stdout: &str) -> Vec<(String, String, String)> {
     stdout
@@ -52,13 +42,13 @@ fn parse_ps_output(stdout: &str) -> Vec<(String, String, String)> {
         .collect()
 }
 
-/// 从 ll-cli list --json --type=all 输出构建 appId → ListItem 查找表
-fn build_list_map(stdout: &str) -> HashMap<String, ListItem> {
+/// 从 ll-cli list --json --type=all 输出构建 appId → LLCliListItem 查找表
+fn build_list_map(stdout: &str) -> HashMap<String, LLCliListItem> {
     let trimmed = stdout.trim();
     if trimmed.is_empty() {
         return HashMap::new();
     }
-    match serde_json::from_str::<Vec<ListItem>>(trimmed) {
+    match serde_json::from_str::<Vec<LLCliListItem>>(trimmed) {
         Ok(items) => items
             .into_iter()
             .filter_map(|item| {
@@ -69,19 +59,6 @@ fn build_list_map(stdout: &str) -> HashMap<String, ListItem> {
             warn!("[build_list_map] Failed to parse ll-cli list output: {}", e);
             HashMap::new()
         }
-    }
-}
-
-/// 将 arch 字段统一转换为字符串（JSON 里可能是字符串或数组）
-fn arch_to_string(arch: &serde_json::Value) -> String {
-    match arch {
-        serde_json::Value::String(s) => s.clone(),
-        serde_json::Value::Array(arr) => arr
-            .iter()
-            .filter_map(|v| v.as_str())
-            .collect::<Vec<_>>()
-            .join(", "),
-        _ => String::new(),
     }
 }
 
