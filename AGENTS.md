@@ -436,6 +436,7 @@ v2.0.0 从 Electron 迁移到 Tauri。主要变更：
 
 ## 变更记录
 - WebKit DMABUF 回退：检测到 NVIDIA GPU 时自动设置 `WEBKIT_DISABLE_DMABUF_RENDERER=1`（集中在 `src-tauri/src/utils/linux/workarounds.rs`，启动时以 warn 记录）
+- README / Changelog 约定：`README.md` 只保留项目概览、功能、安装入口与贡献指南；历史版本更新统一维护在 `CHANGELOG.md`
 
 ## 关键参考文件
 - **类型系统**：`src/types/common.d.ts`、`src/types/api/common.d.ts`
