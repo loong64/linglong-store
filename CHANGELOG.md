@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.1] - 2026-03-10
+
+### 修复
+- 修复应用列表页 `ApplicationCard` 与浮层反复闪烁问题
+  - `usePaginatedList` 改为使用稳定的 `loadPage` 引用，避免 `loading` 状态变化触发页面首屏 `useEffect` 循环重跑
+  - 首屏重载改为允许抢占旧请求，并通过请求代次丢弃过期响应，避免切分类、切 Tab、清空搜索后被旧结果回写
+  - `reset()` 现在会同步废弃未完成请求，防止列表刚重置又被旧请求重新填充
+- 统一调整全局 Modal 阴影样式，修复桌面端弹窗阴影重叠、边缘发脏的问题
+
+### 技术细节
+- `src/hooks/usePaginatedList.ts` 新增同步并发保护和请求代次控制，统一收敛列表页分页加载语义
+- `src/styles/App.scss` 新增全局 `.ant-modal-content` 阴影和边框覆盖，统一普通 Modal 与 `Modal.confirm` 的视觉表现
+
 ## [2.3.0] - 2026-03-04
 
 ### 新增

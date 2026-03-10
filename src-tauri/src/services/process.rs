@@ -1,4 +1,5 @@
-use crate::services::ll_cli_command;
+use crate::services::executor;
+use crate::services::install::{LLCliListItem, arch_to_string};
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -21,17 +22,6 @@ pub struct LinglongAppInfo {
     pub container_id: String,
 }
 
-/// ll-cli list --json --type=all 输出的单个条目（仅采集所需字段）
-#[derive(Debug, Deserialize)]
-struct ListItem {
-    #[serde(alias = "id", alias = "appid", alias = "appId")]
-    app_id: Option<String>,
-    version: String,
-    arch: serde_json::Value,
-    channel: String,
-    runtime: Option<String>,
-}
-
 /// 解析 ll-cli ps 的文本输出，返回 (appId, containerId, pid) 三元组列表
 fn parse_ps_output(stdout: &str) -> Vec<(String, String, String)> {
     stdout
@@ -52,13 +42,13 @@ fn parse_ps_output(stdout: &str) -> Vec<(String, String, String)> {
         .collect()
 }
 
-/// 从 ll-cli list --json --type=all 输出构建 appId → ListItem 查找表
-fn build_list_map(stdout: &str) -> HashMap<String, ListItem> {
+/// 从 ll-cli list --json --type=all 输出构建 appId → LLCliListItem 查找表
+fn build_list_map(stdout: &str) -> HashMap<String, LLCliListItem> {
     let trimmed = stdout.trim();
     if trimmed.is_empty() {
         return HashMap::new();
     }
-    match serde_json::from_str::<Vec<ListItem>>(trimmed) {
+    match serde_json::from_str::<Vec<LLCliListItem>>(trimmed) {
         Ok(items) => items
             .into_iter()
             .filter_map(|item| {
@@ -69,19 +59,6 @@ fn build_list_map(stdout: &str) -> HashMap<String, ListItem> {
             warn!("[build_list_map] Failed to parse ll-cli list output: {}", e);
             HashMap::new()
         }
-    }
-}
-
-/// 将 arch 字段统一转换为字符串（JSON 里可能是字符串或数组）
-fn arch_to_string(arch: &serde_json::Value) -> String {
-    match arch {
-        serde_json::Value::String(s) => s.clone(),
-        serde_json::Value::Array(arr) => arr
-            .iter()
-            .filter_map(|v| v.as_str())
-            .collect::<Vec<_>>()
-            .join(", "),
-        _ => String::new(),
     }
 }
 
@@ -99,40 +76,20 @@ fn extract_source(runtime: Option<&String>) -> String {
 /// 替代原来的 1+N 次（1 次 ps + N 次 info），大幅降低查询延迟。
 pub async fn get_running_linglong_apps() -> Result<Vec<LinglongAppInfo>, String> {
     // 1. 获取运行中进程列表
-    let ps_output = ll_cli_command()
-        .arg("ps")
-        .output()
-        .map_err(|e| format!("Failed to execute 'll-cli ps': {}", e))?;
-
-    if !ps_output.status.success() {
-        let stderr = String::from_utf8_lossy(&ps_output.stderr);
-        return Err(format!(
-            "ll-cli ps failed (status={}): {}",
-            ps_output.status, stderr
-        ));
-    }
-
-    let ps_string = String::from_utf8_lossy(&ps_output.stdout);
-    let running = parse_ps_output(&ps_string);
+    let ps_stdout = executor::execute_or_err(&["ps"], "ps").await?;
+    let running = parse_ps_output(&ps_stdout);
 
     if running.is_empty() {
         return Ok(Vec::new());
     }
 
     // 2. 批量获取已安装应用详情，构建查找表
-    let list_output = ll_cli_command()
-        .arg("list")
-        .arg("--json")
-        .arg("--type=all")
-        .output()
-        .map_err(|e| format!("Failed to execute 'll-cli list': {}", e))?;
-
-    let list_map = if list_output.status.success() {
-        let list_string = String::from_utf8_lossy(&list_output.stdout);
-        build_list_map(&list_string)
-    } else {
-        warn!("[get_running_linglong_apps] ll-cli list failed, falling back to empty map");
-        HashMap::new()
+    let list_map = match executor::execute(&["list", "--json", "--type=all"], "ps_list").await {
+        Ok(output) if output.success => build_list_map(&output.stdout),
+        _ => {
+            warn!("[get_running_linglong_apps] ll-cli list failed, falling back to empty map");
+            HashMap::new()
+        }
     };
 
     // 3. 合并数据：用 list 详情补充 ps 行信息，找不到则降级填充
@@ -171,20 +128,8 @@ pub async fn get_running_linglong_apps() -> Result<Vec<LinglongAppInfo>, String>
 }
 
 async fn is_app_running(app_id: &str) -> Result<bool, String> {
-    let ps_output = ll_cli_command()
-        .arg("ps")
-        .output()
-        .map_err(|e| format!("Failed to execute 'll-cli ps': {}", e))?;
-
-    if !ps_output.status.success() {
-        return Err(format!(
-            "ll-cli ps command failed with status: {}",
-            ps_output.status
-        ));
-    }
-
-    let ps_string = String::from_utf8_lossy(&ps_output.stdout);
-    let running = parse_ps_output(&ps_string);
+    let stdout = executor::execute_or_err(&["ps"], "is_app_running").await?;
+    let running = parse_ps_output(&stdout);
     Ok(running.iter().any(|(name, _, _)| name == app_id))
 }
 
@@ -201,15 +146,13 @@ pub async fn kill_linglong_app(app_name: String) -> Result<String, String> {
             "[kill_linglong_app] App is running, attempt {} to kill: {}",
             attempt, app_name
         );
-        let output = ll_cli_command()
-            .arg("kill")
-            .arg("-s")
-            .arg("9")
-            .arg(&app_name)
-            .output()
-            .map_err(|e| format!("Failed to execute 'll-cli kill': {}", e))?;
-        let mut error_msg = String::from_utf8_lossy(&output.stderr).to_string();
-        if !output.status.success() {
+        let kill_output = executor::execute(
+            &["kill", "-s", "9", &app_name],
+            "kill",
+        ).await.map_err(|e| format!("Failed to execute 'll-cli kill': {}", e))?;
+
+        let mut error_msg = kill_output.stderr.clone();
+        if !kill_output.success {
             warn!(
                 "[kill_linglong_app] kill attempt {} failed for {}: {}",
                 attempt, app_name, error_msg

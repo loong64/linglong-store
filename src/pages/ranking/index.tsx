@@ -1,12 +1,11 @@
 import { Tabs } from 'antd'
-import ApplicationCard from '@/components/ApplicationCard'
+import ConnectedApplicationCard from '@/components/ConnectedApplicationCard'
 import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import { getNewAppList, getInstallAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
 import styles from './index.module.scss'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
-import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
+import { usePaginatedList } from '@/hooks/usePaginatedList'
 
 const defaultPageSize = 10 // 每页显示数量
 
@@ -14,116 +13,40 @@ type AppInfo = API.APP.AppMainDto
 const Ranking = () => {
   const arch = useGlobalStore((state) => state.arch)
   const repoName = useGlobalStore((state) => state.repoName)
-  const { getCardState, handleInstall, uninstall } = useApplicationCardModel()
   const [activeTab, setActiveTab] = useState('101')
   const listRef = useRef<HTMLDivElement>(null)
-  const [RankList, setRankList] = useState<AppInfo[]>([])
-  const [pageNo, setPageNo] = useState<number>(1)
-  const [loading, setLoading] = useState<boolean>(false)
-  const [initialLoading, setInitialLoading] = useState<boolean>(true)
-  const [totalPages, setTotalPages] = useState<number>(1)
 
-  // 获取应用列表函数
-  const getRankAppList = useCallback(async({ pageNo = 1, init = false, tabKey }: { pageNo?: number, init?: boolean, tabKey?: string })=>{
-    const currentTab = tabKey || '101'
+  const fetcher = useCallback(async(pageNo: number) => {
+    const params = { repoName, arch, pageNo, pageSize: defaultPageSize }
+    const res = activeTab === '102'
+      ? await getNewAppList(params)
+      : await getInstallAppList(params)
+    return { records: (res.data.records || []) as AppInfo[], pages: res.data.pages || 1 }
+  }, [repoName, arch, activeTab])
 
-    if (init) {
-      setInitialLoading(true)
-      setRankList([])
-    }
-    setLoading(true)
-    try {
-      switch (currentTab) {
-      case '102':
-      {
-        const res = await getNewAppList({
-          repoName,
-          arch,
-          pageNo,
-          pageSize: defaultPageSize,
-        })
+  const {
+    items: RankList,
+    loading,
+    initialLoading,
+    hasMore,
+    loadPage,
+  } = usePaginatedList<AppInfo>({
+    fetcher,
+    containerRef: listRef as React.RefObject<HTMLDivElement>,
+    pageSize: defaultPageSize,
+    extraDeps: [activeTab],
+  })
 
-        const newRecords = res.data.records || []
-        if (init) {
-          setRankList(newRecords)
-        } else {
-          setRankList(prev => {
-            const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-            return [...filteredPrev, ...newRecords]
-          })
-        }
-
-        setTotalPages(res.data.pages || 1)
-        setPageNo(pageNo)
-        break
-      }
-
-      default:
-      {
-        const res = await getInstallAppList({
-          repoName,
-          arch,
-          pageNo,
-          pageSize: defaultPageSize,
-        })
-
-        const newRecords = res.data.records || []
-        if (init) {
-          setRankList(newRecords)
-        } else {
-          setRankList(prev => {
-            const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-            return [...filteredPrev, ...newRecords]
-          })
-        }
-
-        setTotalPages(res.data.pages || 1)
-        setPageNo(pageNo)
-        break
-      }
-      }
-
-    } catch (error) {
-      console.error('获取应用列表失败:', error)
-      // 错误时移除空卡片
-      if (init) {
-        setRankList([])
-      }
-    } finally {
-      if (init) {
-        setInitialLoading(false)
-      }
-      setLoading(false)
-    }
-  }, [repoName, arch])
-
-  const loadNextPage = useCallback(() => {
-    if (loading || pageNo >= totalPages) {
-      return
-    }
-    getRankAppList({ pageNo: pageNo + 1, tabKey: activeTab })
-  }, [loading, pageNo, totalPages, activeTab, getRankAppList])
   // tab切换
   const handleTabChange = (key: string) => {
     setActiveTab(key)
-    setPageNo(1)
-    setTotalPages(1)
-    setRankList([])
-    getRankAppList({ pageNo: 1, init: true, tabKey: key })
-    console.info(key, 'key======')
+    // loadPage 会在 fetcher 更新（activeTab 变化）后由 useEffect 触发
   }
-  // 初始化获取数据
-  useEffect(() => {
-    getRankAppList({ pageNo: 1, init: true, tabKey: activeTab })
-  }, [getRankAppList])
 
-  useAutoLoadWhenNotScrollable({
-    containerRef: listRef,
-    loading,
-    hasMore: pageNo < totalPages,
-    onLoadMore: loadNextPage,
-    deps: [RankList, activeTab, pageNo, totalPages],
-  })
+  // 初始化 + tab 切换时重新加载
+  useEffect(() => {
+    loadPage(1, true)
+  }, [loadPage])
 
   return <div className={styles.rankContainer} ref={listRef}>
     <div className={styles.rankHeader}>
@@ -143,23 +66,14 @@ const Ranking = () => {
           <ApplicationCardSkeleton count={defaultPageSize} />
         ) : (
           <>
-            {RankList.map((item, index) => {
-              const cardState = getCardState(item)
-              return (
-                <ApplicationCard
-                  key={`${item.appId}_${index}`}
-                  appInfo={item}
-                  operateId={1}
-                  isInstalled={cardState.isInstalled}
-                  hasUpdate={cardState.hasUpdate}
-                  isInstalling={cardState.isInstalling}
-                  onInstall={handleInstall}
-                  onUninstall={uninstall}
-                />
-              )
-            })}
+            {RankList.map((item, index) => (
+              <ConnectedApplicationCard
+                key={`${item.appId}_${index}`}
+                appInfo={item}
+              />
+            ))}
             {loading && <div className={styles.loadingTip}>加载中...</div>}
-            {totalPages <= pageNo && RankList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
+            {!hasMore && RankList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
           </>
         )}
       </div>

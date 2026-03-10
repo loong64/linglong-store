@@ -24,8 +24,10 @@ use services::linglong::{
 };
 use services::linglong_env::{
     check_linglong_env,
-    install_linglong_env,
     LinglongEnvCheckResult,
+};
+use services::linglong_env_install::{
+    install_linglong_env,
     InstallLinglongResult,
 };
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};

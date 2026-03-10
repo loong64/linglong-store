@@ -12,16 +12,19 @@ import { useEffect } from 'react'
 import { message } from 'antd'
 import { onInstallProgress } from '@/apis/invoke'
 import { useInstallQueueStore } from '@/stores/installQueue'
-import { useUpdatesStore } from '@/stores/updates'
-import { useInstalledAppsStore } from '@/stores/installedApps'
+import { useShallow } from 'zustand/react/shallow'
 import { sendInstallRecord } from '@/services/analyticsService'
+import { syncAfterAppChange } from '@/utils/appChangeSync'
 import { getInstallErrorMessage, InstallErrorCode } from '@/constants/installErrorCodes'
 
 export const useGlobalInstallProgress = () => {
-  const { updateProgress, markSuccess, markFailed } = useInstallQueueStore()
-  const checkUpdates = useUpdatesStore((state) => state.checkUpdates)
-  const checkingUpdates = useUpdatesStore((state) => state.checking)
-  const fetchInstalledApps = useInstalledAppsStore((state) => state.fetchInstalledApps)
+  const { updateProgress, markSuccess, markFailed } = useInstallQueueStore(
+    useShallow((state) => ({
+      updateProgress: state.updateProgress,
+      markSuccess: state.markSuccess,
+      markFailed: state.markFailed,
+    })),
+  )
   const [messageApi] = message.useMessage()
 
 
@@ -70,12 +73,7 @@ export const useGlobalInstallProgress = () => {
             }
 
             // 后台刷新已安装列表和更新列表
-            if (!checkingUpdates) {
-              checkUpdates()
-            }
-            fetchInstalledApps().catch((err) =>
-              console.error('[useGlobalInstallProgress] Failed to refresh installed apps:', err),
-            )
+            syncAfterAppChange()
           }
           break
         }
@@ -132,20 +130,25 @@ export const useGlobalInstallProgress = () => {
               key: `install-success-${progress.appId}`,
             })
 
-            if (!checkingUpdates) {
-              checkUpdates()
-            }
-            fetchInstalledApps().catch((err) =>
-              console.error('[useGlobalInstallProgress] Failed to refresh installed apps:', err),
-            )
+            // 后台刷新已安装列表和更新列表
+            syncAfterAppChange()
           }
 
           // 检查是否安装失败
-          if (progress.status.includes('失败') || progress.status.includes('取消')) {
+          if (progress.status.includes('失败')) {
             markFailed(progress.appId, progress.status)
             messageApi.error({
               content: `${appName} ${progress.status}`,
               key: `install-failed-${progress.appId}`,
+            })
+          }
+
+          // 检查是否安装取消（旧格式兼容，使用 info 级别提示）
+          if (progress.status.includes('取消')) {
+            markFailed(progress.appId, progress.status)
+            messageApi.info({
+              content: `${appName} 安装已取消`,
+              key: `install-cancelled-${progress.appId}`,
             })
           }
           break
@@ -165,6 +168,6 @@ export const useGlobalInstallProgress = () => {
         unlistenProgress()
       }
     }
-  }, [updateProgress, markSuccess, markFailed, checkUpdates, checkingUpdates, fetchInstalledApps])
+  }, [updateProgress, markSuccess, markFailed])
 }
 
