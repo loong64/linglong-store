@@ -58,8 +58,6 @@ declare namespace Store {
   interface Global extends EnvState {
     /** 应用是否初始化完成 */
     isInited: boolean
-    /** 需要更新的应用数量 */
-    updateAppNum: number
     /** 当前客户端/商店版本（来自 package.json） */
     appVersion: string
     /** 设备指纹ID（匿名统计用） */
@@ -73,8 +71,6 @@ declare namespace Store {
     setArch: (value: string) => void
     /** 更改仓库 */
     setRepoName: (value: string) => void
-    /** 更新需要更新的应用数量 */
-    getUpdateAppNum: (num: number) => void
     /** 更新 app 版本号 */
     setAppVersion: (value: string) => void
     /** 设置设备指纹ID */

@@ -21,7 +21,6 @@ export const useGlobalStore = create<Store.Global>((set) => ({
   repoName: 'stable',
   // use package.json version as global appVersion
   appVersion: '',
-  updateAppNum: 0,
   checking: false,
   installing: false,
   checked: false,
@@ -46,9 +45,6 @@ export const useGlobalStore = create<Store.Global>((set) => ({
   })),
   setRepoName: (value: string) => set(() => ({
     repoName: value,
-  })),
-  getUpdateAppNum: (num: number) => set(() => ({
-    updateAppNum: num,
   })),
   setAppVersion: (value: string) => set(() => ({ appVersion: value })),
   setChecking: (value: boolean) => set(() => ({ checking: value })),
