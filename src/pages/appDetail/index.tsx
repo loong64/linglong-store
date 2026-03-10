@@ -22,6 +22,8 @@ interface VersionInfo extends API.APP.AppMainDto {
   version?: string
 }
 
+const SCREENSHOT_PLACEHOLDER_COUNT = 3
+
 const AppDetail = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -30,6 +32,8 @@ const AppDetail = () => {
   const [versions, setVersions] = useState<VersionInfo[]>([])
 
   const [screenshotList, setScreenshotList] = useState<API.APP.AppScreenshot[]>([])
+  // 单独维护截图加载态，先渲染固定占位高度，避免图片区延迟插入导致页面跳动。
+  const [screenshotLoading, setScreenshotLoading] = useState(() => Boolean(app?.appId))
   const [loading, setLoading] = useState(false)
   const [uninstallingVersion, setUninstallingVersion] = useState<string | null>(null)
   const [creatingShortcut, setCreatingShortcut] = useState(false)
@@ -116,6 +120,7 @@ const AppDetail = () => {
   }, [latestVersion, installedVersionSet])
 
   const hasInstalledVersion = useMemo(() => installedVersionSet.size > 0, [installedVersionSet])
+  const shouldShowScreenshotSection = screenshotLoading || screenshotList.length > 0
 
   // 无版本列表或已装最新时，主按钮走启动
   const shouldRunInstalled = useMemo(() => {
@@ -167,6 +172,8 @@ const AppDetail = () => {
       return
     }
     console.info('appAllInfo: getting app detail for', currentApp.appId)
+    setScreenshotLoading(true)
+    setScreenshotList([])
     try {
       const result = await getAppDetail([{ appId: currentApp.appId, arch }])
       const appDetailList = (result.data[currentApp.appId as keyof typeof result.data] as API.APP.AppMainDto[]) || []
@@ -179,6 +186,8 @@ const AppDetail = () => {
       console.error('appAllInfo: error', err)
       const errorMessage = err instanceof Error ? err.message : String(err)
       message.error(`获取应用详情失败: ${errorMessage}`)
+    } finally {
+      setScreenshotLoading(false)
     }
   }
   useEffect(() => {
@@ -542,25 +551,31 @@ const AppDetail = () => {
           {currentApp.description || '暂无描述信息'}
         </div>
       </div>
-      {screenshotList.length > 0 ? <div className={styles.screenshot}>
+      {shouldShowScreenshotSection ? <div className={styles.screenshot}>
         <div className={styles.title}>屏幕截图</div>
         <div className={styles.imgBox}>
           <div className={styles.imgList}>
-            {
-              screenshotList.map((item, index) => {
+            {screenshotLoading
+              ? Array.from({ length: SCREENSHOT_PLACEHOLDER_COUNT }, (_, index) => (
+                <div
+                  key={`screenshot-placeholder-${index}`}
+                  className={styles.imgItemPlaceholder}
+                  aria-hidden='true'
+                />
+              ))
+              : screenshotList.map((item, index) => {
                 const key = item.screenshotKey || `${currentApp.appId}-${index}`
                 return (
-                  <Image
-                    key={key}
-                    width={320}
-                    height={180}
-                    src={item.screenshotKey}
-                    alt='应用截图'
-                    fallback={DefaultIcon}
-                  />
+                  <div key={key} className={styles.imgItem}>
+                    <Image
+                      className={styles.screenshotImage}
+                      src={item.screenshotKey}
+                      alt='应用截图'
+                      fallback={DefaultIcon}
+                    />
+                  </div>
                 )
-              })
-            }
+              })}
           </div>
         </div>
       </div> : null
