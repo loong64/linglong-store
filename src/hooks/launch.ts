@@ -9,7 +9,7 @@
  * - 初始化匿名统计（如用户允许）
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { arch } from '@tauri-apps/plugin-os'
 import { useGlobalStore } from '@/stores/global'
 import { useConfigStore } from '@/stores/appConfig'
@@ -223,8 +223,14 @@ export const useLaunch = (): Hooks.Launch.UseLaunchReturn => {
 
   /**
    * 组件挂载时执行初始化
+   * 使用 ref 守卫防止 StrictMode 下的重复调用
    */
+  const initRef = useRef(false)
   useEffect(() => {
+    if (initRef.current) {
+      return
+    }
+    initRef.current = true
     initialize()
   }, []) // 只在首次挂载时执行
 
