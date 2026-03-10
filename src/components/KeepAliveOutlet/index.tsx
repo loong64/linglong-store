@@ -61,6 +61,7 @@ const KeepAliveOutlet = () => {
   }), [currentPath])
 
   if (shouldCache && outlet && !cacheRef.current.has(currentPath)) {
+    // 缓存满时淘汰最久未访问的页面（LRU：Map 尾部是最近访问的）
     if (cacheRef.current.size >= MAX_CACHE_SIZE) {
       const oldestPath = cacheRef.current.keys().next().value
       if (oldestPath) {
@@ -68,6 +69,11 @@ const KeepAliveOutlet = () => {
       }
     }
     cacheRef.current.set(currentPath, outlet)
+  } else if (shouldCache && cacheRef.current.has(currentPath)) {
+    // LRU 更新：命中缓存时将其移到 Map 尾部（最近访问）
+    const cached = cacheRef.current.get(currentPath)!
+    cacheRef.current.delete(currentPath)
+    cacheRef.current.set(currentPath, cached)
   }
 
   return (
