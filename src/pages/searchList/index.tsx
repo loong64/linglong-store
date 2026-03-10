@@ -48,11 +48,8 @@ const SearchList = ()=>{
         // 初始化时直接替换
         setSearchAppList(newRecords)
       } else {
-        // 追加新数据时，过滤掉空卡片后再追加
-        setSearchAppList(prev => {
-          const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-          return [...filteredPrev, ...newRecords]
-        })
+        // 追加新数据
+        setSearchAppList(prev => [...prev, ...newRecords])
       }
 
       setTotalPages(res.data.pages || 1)

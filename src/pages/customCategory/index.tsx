@@ -89,11 +89,8 @@ const OfficeApps = () => {
         // 初始化时直接替换
         setAllAppList(newRecords)
       } else {
-        // 追加新数据时，过滤掉空卡片后再追加
-        setAllAppList(prev => {
-          const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-          return [...filteredPrev, ...newRecords]
-        })
+        // 追加新数据
+        setAllAppList(prev => [...prev, ...newRecords])
       }
 
       setTotalPages(res.data.pages || 1)

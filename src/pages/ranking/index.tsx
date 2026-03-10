@@ -47,10 +47,7 @@ const Ranking = () => {
         if (init) {
           setRankList(newRecords)
         } else {
-          setRankList(prev => {
-            const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-            return [...filteredPrev, ...newRecords]
-          })
+          setRankList(prev => [...prev, ...newRecords])
         }
 
         setTotalPages(res.data.pages || 1)
@@ -71,10 +68,7 @@ const Ranking = () => {
         if (init) {
           setRankList(newRecords)
         } else {
-          setRankList(prev => {
-            const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-            return [...filteredPrev, ...newRecords]
-          })
+          setRankList(prev => [...prev, ...newRecords])
         }
 
         setTotalPages(res.data.pages || 1)

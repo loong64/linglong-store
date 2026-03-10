@@ -1,10 +1,10 @@
 import AppCarousel from '@/components/ApplicationCarousel'
 import ApplicationCard from '@/components/ApplicationCard'
+import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import styles from './index.module.scss'
 import { getWelcomeCarouselList, getWelcomeAppList } from '@/apis/apps/index'
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { useGlobalStore } from '@/stores/global'
-import { generateEmptyCards } from './utils'
 import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
 import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 
@@ -21,13 +21,12 @@ const Recommend = () => {
   const listRef = useRef<HTMLDivElement>(null)
   const [pageNo, setPageNo] = useState<number>(1)
   const [loading, setLoading] = useState<boolean>(false)
+  const [initialLoading, setInitialLoading] = useState<boolean>(true)
   const [totalPages, setTotalPages] = useState<number>(1)
 
   const fetchData = useCallback(async() => {
     try {
-      // 设置初始化的空卡片
-      setRecommendList(generateEmptyCards(defaultPageSize))
-      setCarouselList(generateEmptyCards(5))
+      setInitialLoading(true)
       // 并行请求，提高性能
       const [carouselResult, recommendResult] = await Promise.all([
         getWelcomeCarouselList({ repoName, arch }),
@@ -46,6 +45,8 @@ const Recommend = () => {
       }
     } catch (error) {
       console.error('Failed to fetch recommend data:', error)
+    } finally {
+      setInitialLoading(false)
     }
   }, [repoName, arch])
   // 获取推荐数据函数
@@ -63,11 +64,8 @@ const Recommend = () => {
       })
 
       const newRecords = res.data.records || []
-      // 追加新数据时，过滤掉空卡片后再追加
-      setRecommendList(prev => {
-        const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-        return [...filteredPrev, ...newRecords]
-      })
+      // 追加新数据
+      setRecommendList(prev => [...prev, ...newRecords])
 
       setTotalPages(res.data.pages || 1)
       setPageNo(pageNo)
@@ -111,23 +109,29 @@ const Recommend = () => {
         <div className={styles.appMain}>
           <p className={styles.name}>玲珑推荐</p>
           <div className={styles.appList}>
-            {recommendList.map((item, index) => {
-              const cardState = getCardState(item)
-              return (
-                <ApplicationCard
-                  key={`${item.appId}_${index}`}
-                  appInfo={item}
-                  operateId={1}
-                  isInstalled={cardState.isInstalled}
-                  hasUpdate={cardState.hasUpdate}
-                  isInstalling={cardState.isInstalling}
-                  onInstall={handleInstall}
-                  onUninstall={uninstall}
-                />
-              )
-            })}
-            {loading && <div className={styles.loadingTip}>加载中...</div>}
-            {totalPages <= pageNo && recommendList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
+            {initialLoading ? (
+              <ApplicationCardSkeleton count={defaultPageSize} />
+            ) : (
+              <>
+                {recommendList.map((item, index) => {
+                  const cardState = getCardState(item)
+                  return (
+                    <ApplicationCard
+                      key={`${item.appId}_${index}`}
+                      appInfo={item}
+                      operateId={1}
+                      isInstalled={cardState.isInstalled}
+                      hasUpdate={cardState.hasUpdate}
+                      isInstalling={cardState.isInstalling}
+                      onInstall={handleInstall}
+                      onUninstall={uninstall}
+                    />
+                  )
+                })}
+                {loading && <div className={styles.loadingTip}>加载中...</div>}
+                {!loading && totalPages <= pageNo && recommendList.length > 0 && <div className={styles.noMoreTip}>没有更多数据了</div>}
+              </>
+            )}
           </div>
         </div>
       </main>

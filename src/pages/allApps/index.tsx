@@ -6,14 +6,12 @@ import ApplicationCardSkeleton from '@/components/ApplicationCardSkeleton'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { getDisCategoryList, getSearchAppList } from '@/apis/apps/index'
 import { useGlobalStore } from '@/stores/global'
-import { generateEmptyCategories } from './utils'
 import { OperateType } from '@/constants/applicationCard'
 import { useAutoLoadWhenNotScrollable } from '@/hooks/useAutoLoadWhenNotScrollable'
 import { useApplicationCardModel } from '@/hooks/useApplicationCardModel'
 import { useKeepAliveVisibility } from '@/hooks/useKeepAliveVisibility'
 
 const defaultPageSize = 30 // 每页显示数量
-const defaultCategorySize = 22 // 默认分类数量
 
 type Category = API.APP.AppCategories
 type AppInfo = API.APP.AppMainDto
@@ -35,7 +33,6 @@ const AllApps = () => {
 
   // 获取分类列表
   const getCategoryList = async() => {
-    setCategoryList(generateEmptyCategories(defaultCategorySize))
     try {
       const result = await getDisCategoryList()
       const categories = [
@@ -75,11 +72,8 @@ const AllApps = () => {
         // 初始化时直接替换
         setAllAppList(newRecords)
       } else {
-        // 追加新数据时，过滤掉空卡片后再追加
-        setAllAppList(prev => {
-          const filteredPrev = prev.filter(item => !item.appId?.startsWith('empty-'))
-          return [...filteredPrev, ...newRecords]
-        })
+        // 追加新数据
+        setAllAppList(prev => [...prev, ...newRecords])
       }
 
       setTotalPages(res.data.pages || 1)
