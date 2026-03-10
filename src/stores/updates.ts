@@ -124,7 +124,6 @@ export const useUpdatesStore = create<UpdatesStore>((set, get) => ({
       const installedApps = await getInstalledLinglongApps()
       if (installedApps.length === 0) {
         set({ updates: [], lastChecked: Date.now() })
-        useGlobalStore.getState().getUpdateAppNum(0)
         return
       }
 
@@ -139,7 +138,6 @@ export const useUpdatesStore = create<UpdatesStore>((set, get) => ({
       const searchParams = buildCheckUpdateParams(installedApps, arch)
       if (searchParams.length === 0) {
         set({ updates: [], lastChecked: Date.now() })
-        useGlobalStore.getState().getUpdateAppNum(0)
         return
       }
 
@@ -148,7 +146,6 @@ export const useUpdatesStore = create<UpdatesStore>((set, get) => ({
       if (!response.data) {
         console.warn('[checkUpdates] No data returned from appCheckUpdate')
         set({ updates: [], lastChecked: Date.now() })
-        useGlobalStore.getState().getUpdateAppNum(0)
         return
       }
 
@@ -157,7 +154,6 @@ export const useUpdatesStore = create<UpdatesStore>((set, get) => ({
 
       // 6. 更新状态
       set({ updates: updateList, lastChecked: Date.now() })
-      useGlobalStore.getState().getUpdateAppNum(updateList.length)
 
     } catch (error) {
       console.error('[checkUpdates] Failed to check updates:', error)
