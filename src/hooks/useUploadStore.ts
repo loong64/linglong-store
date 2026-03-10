@@ -11,25 +11,30 @@ import adapterFetch from 'alova/fetch'
 // Gitee 仓库配置
 const GITEE_REPO = 'Shirosu/linglong-store'
 
-// 创建 Gitee API 专用的 alova 实例
-const giteeAlova = createAlova({
-  baseURL: 'https://gitee.com/api/v5',
-  requestAdapter: adapterFetch(),
-  timeout: 10000,
-  // 响应拦截器：自动解析 JSON
-  responded: {
-    onSuccess: async(response: Response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-      return response.json()
-    },
-    onError: (error: Error) => {
-      console.error('Gitee API 请求失败:', error)
-      throw error
-    },
-  },
-})
+// 延迟创建 Gitee API 专用的 alova 实例，避免模块加载时的开销
+let _giteeAlova: ReturnType<typeof createAlova> | null = null
+function getGiteeAlova() {
+  if (!_giteeAlova) {
+    _giteeAlova = createAlova({
+      baseURL: 'https://gitee.com/api/v5',
+      requestAdapter: adapterFetch(),
+      timeout: 10000,
+      responded: {
+        onSuccess: async(response: Response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          }
+          return response.json()
+        },
+        onError: (error: Error) => {
+          console.error('Gitee API 请求失败:', error)
+          throw error
+        },
+      },
+    })
+  }
+  return _giteeAlova
+}
 
 /**
  * 更新信息接口
@@ -183,7 +188,7 @@ export async function fetchLatestUpdate(
     const perPage = isBetaVersion(currentVersion) ? 20 : 10
     const apiUrl = `https://gitee.com/api/v5/repos/${GITEE_REPO}/releases?page=1&per_page=${perPage}&direction=desc`
 
-    const method = giteeAlova.Get<GiteeRelease[]>(apiUrl, {
+    const method = getGiteeAlova().Get<GiteeRelease[]>(apiUrl, {
       headers: {
         'Content-Type': 'application/json;charset=UTF-8',
         'User-Agent': `linglong-store/${currentVersion}`,
