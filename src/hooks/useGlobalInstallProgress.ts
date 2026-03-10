@@ -12,16 +12,12 @@ import { useEffect } from 'react'
 import { message } from 'antd'
 import { onInstallProgress } from '@/apis/invoke'
 import { useInstallQueueStore } from '@/stores/installQueue'
-import { useUpdatesStore } from '@/stores/updates'
-import { useInstalledAppsStore } from '@/stores/installedApps'
 import { sendInstallRecord } from '@/services/analyticsService'
+import { syncAfterAppChange } from '@/utils/appChangeSync'
 import { getInstallErrorMessage, InstallErrorCode } from '@/constants/installErrorCodes'
 
 export const useGlobalInstallProgress = () => {
   const { updateProgress, markSuccess, markFailed } = useInstallQueueStore()
-  const checkUpdates = useUpdatesStore((state) => state.checkUpdates)
-  const checkingUpdates = useUpdatesStore((state) => state.checking)
-  const fetchInstalledApps = useInstalledAppsStore((state) => state.fetchInstalledApps)
   const [messageApi] = message.useMessage()
 
 
@@ -70,12 +66,7 @@ export const useGlobalInstallProgress = () => {
             }
 
             // 后台刷新已安装列表和更新列表
-            if (!checkingUpdates) {
-              checkUpdates()
-            }
-            fetchInstalledApps().catch((err) =>
-              console.error('[useGlobalInstallProgress] Failed to refresh installed apps:', err),
-            )
+            syncAfterAppChange()
           }
           break
         }
@@ -132,12 +123,8 @@ export const useGlobalInstallProgress = () => {
               key: `install-success-${progress.appId}`,
             })
 
-            if (!checkingUpdates) {
-              checkUpdates()
-            }
-            fetchInstalledApps().catch((err) =>
-              console.error('[useGlobalInstallProgress] Failed to refresh installed apps:', err),
-            )
+            // 后台刷新已安装列表和更新列表
+            syncAfterAppChange()
           }
 
           // 检查是否安装失败
@@ -174,6 +161,6 @@ export const useGlobalInstallProgress = () => {
         unlistenProgress()
       }
     }
-  }, [updateProgress, markSuccess, markFailed, checkUpdates, checkingUpdates, fetchInstalledApps])
+  }, [updateProgress, markSuccess, markFailed])
 }
 
