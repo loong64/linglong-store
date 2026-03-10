@@ -16,6 +16,34 @@ BASE_URL = 'https://storeapi.linyaps.org.cn'
 OUTPUT_PATH = pathlib.Path(__file__).resolve().parents[1] / 'src/services/appListCache/seeds/appListSeeds.ts'
 DEFAULT_REPO = 'stable'
 SUPPORTED_ARCHES = ['x86_64', 'arm64']
+APP_MAIN_DTO_FIELDS = {
+    'id',
+    'appId',
+    'icon',
+    'zhName',
+    'name',
+    'categoryId',
+    'categoryName',
+    'channel',
+    'arch',
+    'description',
+    'kind',
+    'module',
+    'repoName',
+    'runtime',
+    'size',
+    'uabUrl',
+    'user',
+    'version',
+    'installCount',
+    'uninstallCount',
+    'flag',
+    'createTime',
+    'updateTime',
+    'isDelete',
+    'isWelcomed',
+    'appScreenshotList',
+}
 
 
 def normalize_arch(arch: str) -> str:
@@ -46,6 +74,37 @@ def post_json(path: str, payload: dict[str, object]) -> dict[str, object]:
         return json.loads(response.read().decode('utf-8'))
 
 
+def strip_none_fields(value: object) -> object:
+    # seed 文件直接参与 TypeScript 编译，这里先把后端返回的 null 清洗掉，避免污染前端可选字段类型。
+    if isinstance(value, dict):
+        return {
+            key: strip_none_fields(item)
+            for key, item in value.items()
+            if item is not None
+        }
+
+    if isinstance(value, list):
+        return [strip_none_fields(item) for item in value]
+
+    return value
+
+
+def sanitize_app_record(record: object) -> dict[str, object]:
+    # seed 仅缓存列表页已声明的字段，避免匿名接口附带扩展字段时破坏 TS 编译。
+    if not isinstance(record, dict):
+        return {}
+
+    sanitized = strip_none_fields(record)
+    if not isinstance(sanitized, dict):
+        return {}
+
+    return {
+        key: value
+        for key, value in sanitized.items()
+        if key in APP_MAIN_DTO_FIELDS
+    }
+
+
 def fetch_paginated_seed(scope: str, path: str, arch: str, page_size: int, page_count: int, params: dict[str, object] | None = None) -> tuple[str, dict[str, object]]:
     merged_records: list[dict[str, object]] = []
     total_pages = 1
@@ -65,7 +124,9 @@ def fetch_paginated_seed(scope: str, path: str, arch: str, page_size: int, page_
         if not isinstance(data, dict):
             continue
 
-        merged_records.extend(data.get('records') or [])
+        records = data.get('records') or []
+        if isinstance(records, list):
+            merged_records.extend(sanitize_app_record(record) for record in records)
         total_pages = max(1, int(data.get('pages') or 1))
 
     cache_key = build_cache_key(scope, DEFAULT_REPO, arch, params)
@@ -91,6 +152,8 @@ def fetch_list_seed(scope: str, path: str, arch: str, params: dict[str, object] 
     data = response.get('data') or []
     if not isinstance(data, list):
         data = []
+    else:
+        data = [sanitize_app_record(item) for item in data]
 
     cache_key = build_cache_key(scope, DEFAULT_REPO, arch, params)
     snapshot = {
