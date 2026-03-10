@@ -11,6 +11,7 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
+use crate::services::executor;
 use crate::services::ll_cli_command;
 use crate::services::process::kill_linglong_app;
 
@@ -25,24 +26,14 @@ use super::models::{InstalledApp, LLCliListItem};
 /// * `Ok(Vec<InstalledApp>)` - 已安装应用列表
 /// * `Err(String)` - 获取失败原因
 pub async fn get_installed_apps(include_base_service: bool) -> Result<Vec<InstalledApp>, String> {
-    let mut cmd = ll_cli_command();
-    cmd.arg("list").arg("--json");
+    let args: Vec<&str> = if include_base_service {
+        vec!["list", "--json", "--type=all"]
+    } else {
+        vec!["list", "--json"]
+    };
 
-    if include_base_service {
-        cmd.arg("--type=all");
-    }
-
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Failed to execute 'll-cli list': {}", e))?;
-
-    if !output.status.success() {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("ll-cli list command failed: {}", error_msg));
-    }
-
-    let output_string = String::from_utf8_lossy(&output.stdout);
-    let trimmed = output_string.trim();
+    let stdout = executor::execute_or_err(&args, "list")?;
+    let trimmed = stdout.trim();
 
     if trimmed.is_empty() {
         return Ok(Vec::new());
@@ -97,16 +88,7 @@ pub async fn uninstall_linglong_app(app_id: String, version: String) -> Result<S
 
     let app_ref = format!("{}/{}", app_id, version);
 
-    let output = ll_cli_command()
-        .arg("uninstall")
-        .arg(&app_ref)
-        .output()
-        .map_err(|e| format!("Failed to execute 'll-cli uninstall': {}", e))?;
-
-    if !output.status.success() {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("ll-cli uninstall command failed: {}", error_msg));
-    }
+    executor::execute_or_err(&["uninstall", &app_ref], "uninstall")?;
 
     Ok(format!(
         "Successfully uninstalled {} version {}",
@@ -128,27 +110,16 @@ pub async fn search_app_versions(app_id: String) -> Result<Vec<InstalledApp>, St
         app_id
     );
 
-    // 使用 ll-cli list 获取所有已安装的应用
-    let output = ll_cli_command()
-        .arg("list")
-        .arg("--json")
-        .arg("--type=all")
-        .output()
-        .map_err(|e| {
-            let err_msg = format!("Failed to execute 'll-cli list': {}", e);
-            error!("[SearchVersions] Error: {}", err_msg);
-            err_msg
-        })?;
+    // 使用 executor 获取所有已安装的应用
+    let stdout = executor::execute_or_err(
+        &["list", "--json", "--type=all"],
+        "search_versions",
+    ).map_err(|e| {
+        error!("[SearchVersions] Error: {}", e);
+        e
+    })?;
 
-    if !output.status.success() {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        let err = format!("ll-cli list command failed: {}", error_msg);
-        error!("[SearchVersions] {}", err);
-        return Err(err);
-    }
-
-    let output_string = String::from_utf8_lossy(&output.stdout);
-    let trimmed = output_string.trim();
+    let trimmed = stdout.trim();
 
     info!("[SearchVersions] Output length: {} bytes", trimmed.len());
 
@@ -264,18 +235,8 @@ pub async fn create_desktop_shortcut(app_id: String) -> Result<String, String> {
         return Err(format!("应用未安装，无法创建快捷方式: {}", app_id));
     }
 
-    let output = ll_cli_command()
-        .arg("content")
-        .arg(&app_id)
-        .output()
-        .map_err(|e| format!("Failed to execute 'll-cli content': {}", e))?;
+    let stdout = executor::execute_or_err(&["content", &app_id], "content")?;
 
-    if !output.status.success() {
-        let error_msg = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("ll-cli content command failed: {}", error_msg));
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
     let desktop_source = stdout
         .lines()
         .map(str::trim)

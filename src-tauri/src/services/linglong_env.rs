@@ -7,7 +7,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::services::ll_cli_command;
+use crate::services::executor;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -113,15 +113,10 @@ fn parse_ll_version(raw: &str) -> Option<String> {
 }
 
 fn get_ll_cli_version_inner() -> Result<String, String> {
-    let version_output = ll_cli_command()
-        .arg("--json")
-        .arg("--version")
-        .output()
-        .map_err(|e| format!("Failed to execute 'll-cli --json --version': {}", e))?;
+    let output = executor::execute(&["--json", "--version"], "version")?;
 
-    if version_output.status.success() {
-        let clean = String::from_utf8_lossy(&version_output.stdout);
-        if let Some(v) = parse_ll_version(&clean) {
+    if output.success {
+        if let Some(v) = parse_ll_version(&output.stdout) {
             return Ok(v);
         }
     }
@@ -251,30 +246,19 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
     }
 
     // 检查 ll-cli 是否存在
-    let exists = ll_cli_command().arg("--help").output();
-    if exists.is_err() {
-        result.ok = false;
-        result.reason = Some("检测到系统未安装玲珑环境，请先安装".to_string());
-        return Ok(result);
-    }
-    let exists_output = exists.unwrap();
-    if !exists_output.status.success() {
+    let exists = executor::execute(&["--help"], "env_check_help");
+    if exists.is_err() || !exists.as_ref().unwrap().success {
         result.ok = false;
         result.reason = Some("检测到系统未安装玲珑环境，请先安装".to_string());
         return Ok(result);
     }
 
     // 仓库信息
-    let repo_output = ll_cli_command()
-        .arg("--json")
-        .arg("repo")
-        .arg("show")
-        .output();
+    let repo_output = executor::execute(&["--json", "repo", "show"], "env_repo");
     let mut repo_info = LinglongEnvCheckResult::default();
     if let Ok(output) = repo_output {
-        if output.status.success() {
-            let clean = String::from_utf8_lossy(&output.stdout);
-            if let Ok(json) = serde_json::from_str::<HashMap<String, serde_json::Value>>(&clean) {
+        if output.success {
+            if let Ok(json) = serde_json::from_str::<HashMap<String, serde_json::Value>>(&output.stdout) {
                 let repo_name = json
                     .get("defaultRepo")
                     .and_then(|v| v.as_str())
@@ -298,15 +282,13 @@ pub async fn check_linglong_env(min_version: &str) -> Result<LinglongEnvCheckRes
                 repo_info.repo_name = repo_name;
                 repo_info.repos = repos;
             } else {
-                repo_info = parse_repo_output(&clean);
+                repo_info = parse_repo_output(&output.stdout);
             }
         } else {
             // 尝试旧命令
-            let fallback = ll_cli_command().arg("repo").arg("show").output();
-            if let Ok(out) = fallback {
-                if out.status.success() {
-                    let clean = String::from_utf8_lossy(&out.stdout);
-                    repo_info = parse_repo_output(&clean);
+            if let Ok(fallback) = executor::execute(&["repo", "show"], "env_repo_fallback") {
+                if fallback.success {
+                    repo_info = parse_repo_output(&fallback.stdout);
                 }
             }
         }

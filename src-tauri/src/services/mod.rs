@@ -1,5 +1,6 @@
 use std::process::Command;
 
+pub mod executor;
 pub mod network;
 pub mod process;
 pub mod install;
