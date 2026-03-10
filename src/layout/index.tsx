@@ -58,10 +58,13 @@ const AppLayout = () => {
   /** 从配置store中获取是否显示基础服务的设置 */
   const { showBaseService } = useConfigStore()
 
-  /** 监听基础服务显示配置变化，重新加载应用列表 */
+  /** 监听基础服务显示配置变化，重新加载应用列表（仅在初始化完成后响应配置变更） */
   useEffect(() => {
-    fetchInstalledApps(showBaseService)
-  }, [showBaseService, fetchInstalledApps])
+    // 初始加载已由 useLaunch.initialize() 完成，此处仅在初始化后响应配置变更
+    if (isInited) {
+      fetchInstalledApps(showBaseService)
+    }
+  }, [showBaseService]) // 仅监听 showBaseService 变化，不包含 isInited 避免初始化完成时重复加载
 
   /**
    * 渲染应用布局
