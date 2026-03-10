@@ -3,7 +3,7 @@
  * 显示安装队列中的任务状态和进度
  */
 import styles from './index.module.scss'
-import { useMemo, memo } from 'react'
+import { useMemo, memo, useCallback } from 'react'
 import DefaultIcon from '@/assets/linyaps.svg?url'
 import { Progress, Empty, message } from 'antd'
 import { useInstallQueueStore } from '@/stores/installQueue'
@@ -87,7 +87,7 @@ const DownloadProgress = () => {
   /**
    * 清除已完成的历史记录
    */
-  const cleanDownloadHistory = () => {
+  const cleanDownloadHistory = useCallback(() => {
     if (history.length === 0) {
       messageApi.info('暂无已完成的下载记录!')
       return
@@ -95,12 +95,12 @@ const DownloadProgress = () => {
 
     clearHistory()
     messageApi.success(`已清除 ${history.length} 条下载记录`)
-  }
+  }, [history.length, clearHistory, messageApi])
 
   /**
    * 启动应用
    */
-  const handleOpenApp = async(appId?: string) => {
+  const handleOpenApp = useCallback(async(appId?: string) => {
     if (!appId) {
       messageApi.error('无法启动：缺少应用ID')
       return
@@ -113,28 +113,28 @@ const DownloadProgress = () => {
       const errorMessage = error instanceof Error ? error.message : String(error)
       messageApi.error(`启动失败: ${errorMessage}`)
     }
-  }
+  }, [messageApi])
 
   /**
    * 从队列中移除待安装的任务
    */
-  const handleRemoveFromQueue = (taskId: string) => {
+  const handleRemoveFromQueue = useCallback((taskId: string) => {
     removeFromQueue(taskId)
-  }
+  }, [removeFromQueue])
 
   /**
    * 取消正在进行的安装
    */
-  const handleCancelInstall = async(task: Store.InstallTask) => {
+  const handleCancelInstall = useCallback(async(task: Store.InstallTask) => {
     try {
       await cancelInstall(task.appId)
-      handleRemoveFromQueue(task.id)
+      removeFromQueue(task.id)
       messageApi.success('取消安装成功')
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       messageApi.error(`取消失败: ${errorMessage}`)
     }
-  }
+  }, [removeFromQueue, messageApi])
 
   /**
    * 渲染任务状态文本
