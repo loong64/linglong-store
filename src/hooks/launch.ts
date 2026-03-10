@@ -147,49 +147,40 @@ export const useLaunch = (): Hooks.Launch.UseLaunchReturn => {
       setProgress(0)
       console.info('[launch] initialize start')
 
-      // 步骤1: 检查玲珑环境
+      // Phase 1: 检查玲珑环境（阻塞门禁，必须先通过）
       setCurrentStep('检测玲珑环境')
       const envResult = await checkEnv()
       setProgress(20)
       if (!envResult.ok) {
         setError(envResult.reason || '检测到玲珑环境缺失或版本过低，请先安装')
-        // 环境状态已由 useLinglongEnv.checkEnv() 统一写入 global store
         console.warn('[launch] env check failed', envResult.reason)
         return
       }
       console.info('[launch] env ready')
 
-      // 步骤2: 获取应用版本
-      setCurrentStep('获取应用版本')
-      const version = await getAppVersion()
-      setProgress(30)
-
-      // 步骤3: 获取系统信息
+      // Phase 2: 获取版本 + 系统信息（互相独立，并行执行）
       setCurrentStep('获取系统信息')
-      await initSystemInfo()
+      const [version] = await Promise.all([
+        getAppVersion(),
+        initSystemInfo(),
+      ])
       setProgress(40)
 
-      // 异步检查已安装应用的更新（不阻塞启动）
+      // Phase 3: 加载已安装应用 + 检查商店版本 + 初始化统计（互相独立，并行执行）
+      setCurrentStep('加载应用数据')
+      await Promise.all([
+        loadInstalledApps(),
+        checkStoreVersion(version),
+        initAnalytics(),
+      ])
+      setProgress(90)
+
+      // 异步检查已安装应用的更新（不阻塞启动，依赖 installedApps store 已填充）
       checkAppUpdates().catch((err) => console.warn('[launch] checkAppUpdates failed', err))
 
-      // 步骤3: 加载已安装应用（内部已包含详情补全，不再单独调用 updateAppDetails）
-      setCurrentStep('加载已安装应用')
-      await loadInstalledApps()
-      setProgress(70)
-
-      // 步骤4: 检查商店版本（可选）
-      setCurrentStep('检查商店版本')
-      await checkStoreVersion(version)
-      setProgress(85)
-
-      // 步骤5: 恢复中断的安装任务（使用最新 store 快照）
+      // Phase 4: 恢复中断的安装任务（依赖已安装列表已加载）
       setCurrentStep('检查安装任务')
       recoverInstallTask()
-      setProgress(95)
-
-      // 步骤6: 初始化匿名统计（获取设备指纹和IP）
-      setCurrentStep('初始化服务')
-      await initAnalytics()
       setProgress(100)
 
       onInited()
