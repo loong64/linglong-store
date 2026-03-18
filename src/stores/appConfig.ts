@@ -14,6 +14,8 @@ export const useConfigStore = create<Store.Config>((set) => ({
   checkVersion: false,
   /** 是否显示基础服务应用的标志 */
   showBaseService: false,
+  /** 容器内自动更新商店本体（默认开启） */
+  autoSelfUpdate: true,
 
   /**
    * 更改版本检查功能的状态
@@ -29,6 +31,10 @@ export const useConfigStore = create<Store.Config>((set) => ({
    */
   changeBaseServiceStatus: (value: boolean) => set((_state) => ({
     showBaseService: value,
+  })),
+
+  changeAutoSelfUpdateStatus: (value: boolean) => set((_state) => ({
+    autoSelfUpdate: value,
   })),
 }))
 

@@ -13,10 +13,14 @@ declare namespace Store {
     checkVersion: boolean
     /** 是否显示基础运行服务 */
     showBaseService: boolean
+    /** 在容器内运行时是否自动检查并更新到新版本（默认开启） */
+    autoSelfUpdate: boolean
     /** 切换版本检查状态 */
     changeCheckVersionStatus: (value: boolean) => void
     /** 切换基础服务显示状态 */
     changeBaseServiceStatus: (value: boolean) => void
+    /** 切换容器内自动更新状态 */
+    changeAutoSelfUpdateStatus: (value: boolean) => void
   }
 
   /**

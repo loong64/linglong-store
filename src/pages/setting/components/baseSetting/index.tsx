@@ -7,8 +7,10 @@ import { pruneApps } from '@/apis/invoke'
 const BasicSetting = ()=>{
   const checkVersion = useConfigStore((state) => state.checkVersion)
   const showBaseService = useConfigStore((state) => state.showBaseService)
+  const autoSelfUpdate = useConfigStore((state) => state.autoSelfUpdate)
   const changeCheckVersionStatus = useConfigStore((state) => state.changeCheckVersionStatus)
   const changeBaseServiceStatus = useConfigStore((state) => state.changeBaseServiceStatus)
+  const changeAutoSelfUpdateStatus = useConfigStore((state) => state.changeAutoSelfUpdateStatus)
   const [isPruning, setIsPruning] = useState(false)
 
   const autoCheckClick = ()=>{
@@ -16,6 +18,9 @@ const BasicSetting = ()=>{
   }
   const showBaseServiceClick = ()=>{
     changeBaseServiceStatus(!showBaseService)
+  }
+  const autoSelfUpdateClick = ()=>{
+    changeAutoSelfUpdateStatus(!autoSelfUpdate)
   }
   const clearAbandonServiceClick = async() => {
     if (isPruning) {
@@ -39,6 +44,9 @@ const BasicSetting = ()=>{
         <div className={styles.setting_content}>
           <div className={styles.content_item}>
             <Switch checked={checkVersion} onChange={autoCheckClick}/><span className={styles.item_label}>启动App自动检测商店版本</span>
+          </div>
+          <div className={styles.content_item}>
+            <Switch checked={autoSelfUpdate} onChange={autoSelfUpdateClick}/><span className={styles.item_label}>容器内自动更新商店到新版本</span>
           </div>
         </div>
       </div>

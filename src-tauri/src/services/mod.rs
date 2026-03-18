@@ -9,6 +9,7 @@ pub mod linglong_env;
 pub mod linglong_env_install;
 pub(crate) mod linglong_env_parser;
 pub mod prune;
+pub mod self_update;
 
 // 重新导出 install 模块的公共 API，保持向后兼容
 pub use install::{

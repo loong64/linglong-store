@@ -140,6 +140,14 @@ pub fn run() {
     utils::linux::workarounds::apply_nvidia_dmabuf_renderer_workaround();
 
     tauri::Builder::default()
+        .setup(|app| {
+            // 容器内无感自动更新：后台静默检查并替换二进制，不阻塞启动
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                services::self_update::run_silent_self_update(handle).await;
+            });
+            Ok(())
+        })
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();

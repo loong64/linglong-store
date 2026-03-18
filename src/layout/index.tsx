@@ -17,6 +17,7 @@ import { useConfigStore } from '@/stores/appConfig'
 import { useInstalledAppsStore } from '@/stores/installedApps'
 import { sendVisitRecord } from '@/services/analyticsService'
 import { getCustomMenuCategory } from '@/apis/apps'
+import { useSelfUpdate } from '@/hooks/useSelfUpdate'
 
 /**
  * 主应用布局组件
@@ -26,6 +27,9 @@ const AppLayout = () => {
   const { isInited, setCustomMenuCategory } = useGlobalStore()
   const startAutoRefresh = useUpdatesStore(state => state.startAutoRefresh)
   const stopAutoRefresh = useUpdatesStore(state => state.stopAutoRefresh)
+
+  // 注册容器内自动更新监听器
+  useSelfUpdate()
   // 获取自定义菜单配置
   useEffect(() => {
     getCustomMenuCategory().then((res) => {
