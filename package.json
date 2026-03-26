@@ -1,7 +1,7 @@
 {
   "name": "linglong-store",
   "private": true,
-  "version": "2.1.2",
+  "version": "2.2.0",
   "type": "module",
   "license": "MIT",
   "author": "Shirosu <xfreell@163.com>",
