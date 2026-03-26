@@ -11,6 +11,7 @@ use services::{
     uninstall_linglong_app,
     search_app_versions,
     run_linglong_app,
+    create_desktop_shortcut as create_desktop_shortcut_service,
     install_linglong_app,
     cancel_linglong_install,
     InstalledApp,
@@ -23,8 +24,10 @@ use services::linglong::{
 };
 use services::linglong_env::{
     check_linglong_env,
-    install_linglong_env,
     LinglongEnvCheckResult,
+};
+use services::linglong_env_install::{
+    install_linglong_env,
     InstallLinglongResult,
 };
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
@@ -93,6 +96,11 @@ async fn run_app(app_id: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+async fn create_desktop_shortcut(app_id: String) -> Result<String, String> {
+    create_desktop_shortcut_service(app_id).await
+}
+
+#[tauri::command]
 async fn install_app(
     app_handle: tauri::AppHandle,
     app_id: String,
@@ -132,6 +140,14 @@ pub fn run() {
     utils::linux::workarounds::apply_nvidia_dmabuf_renderer_workaround();
 
     tauri::Builder::default()
+        .setup(|app| {
+            // 容器内无感自动更新：后台静默检查并替换二进制，不阻塞启动
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                services::self_update::run_silent_self_update(handle).await;
+            });
+            Ok(())
+        })
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -167,6 +183,7 @@ pub fn run() {
             uninstall_app,
             search_versions,
             run_app,
+            create_desktop_shortcut,
             install_app,
             cancel_install,
             prune_apps,
