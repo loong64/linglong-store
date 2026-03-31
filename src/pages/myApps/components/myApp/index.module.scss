@@ -2,6 +2,30 @@
   height: 100%;
   padding: 0 1.5rem 1.5rem 1.5rem;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .searchInput {
+    width: 100%;
+    flex: 1;
+    min-width: 18rem;
+    max-width: 28rem;
+  }
+
+  .resultMeta {
+    color: var(--ant-color-text-secondary);
+    font-size: 0.875rem;
+    white-space: nowrap;
+  }
 
   // .title {
   //   font-size: 1.5rem;
@@ -44,5 +68,13 @@
     padding: 2rem 0;
     color: var(--color-text-2);
     font-size: 0.875rem;
+  }
+
+  .emptyState {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-bottom: 2rem;
   }
 }
