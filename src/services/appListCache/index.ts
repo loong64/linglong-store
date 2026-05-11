@@ -25,6 +25,9 @@ const normalizeArch = (arch?: string) => {
   if (arch === 'aarch64') {
     return 'arm64'
   }
+  if (arch === 'loongarch64') {
+    return 'loong64'
+  }
 
   return arch
 }

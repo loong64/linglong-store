@@ -40,6 +40,7 @@ fn arch_suffix() -> Option<&'static str> {
     match std::env::consts::ARCH {
         "x86_64" => Some("amd64"),
         "aarch64" => Some("arm64"),
+        "loongarch64" => Some("loong64"),
         _ => None,
     }
 }
@@ -126,7 +127,7 @@ async fn do_update() -> Result<Option<String>, Box<dyn std::error::Error + Send 
     let target_path = target_bin_path().ok_or("无法确定目标二进制路径（HOME 未设置？）")?;
     info!("[self_update] 目标路径: {:?}", target_path);
 
-    let arch = arch_suffix().ok_or("不支持的系统架构，仅支持 amd64 / arm64")?;
+    let arch = arch_suffix().ok_or("不支持的系统架构，仅支持 amd64 / arm64 / loong64")?;
 
     // 构建带 15s 超时的 HTTP 客户端
     let client = reqwest::Client::builder()

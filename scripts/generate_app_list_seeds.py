@@ -49,6 +49,8 @@ APP_MAIN_DTO_FIELDS = {
 def normalize_arch(arch: str) -> str:
     if arch == 'aarch64':
         return 'arm64'
+    elif arch == 'loongarch64':
+        return 'loong64'
     return arch
 
 

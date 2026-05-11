@@ -12,29 +12,36 @@ jobs:
   release:
     permissions:
       contents: write
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.host }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - arch: amd64
+          - host: ubuntu-24.04
+            arch: amd64
+            docker-image: node:20-bookworm
             docker-platform: linux/amd64
-          - arch: arm64
+          - host: ubuntu-24.04-arm
+            arch: arm64
+            docker-image: node:20-bookworm
             docker-platform: linux/arm64
+          - host: ubuntu-24.04
+            arch: loong64
+            docker-image: ghcr.io/loong64/node:20-trixie
+            docker-platform: linux/loong64
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Set up QEMU (for ARM64 cross-compilation)
-        if: matrix.arch == 'arm64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
+      - name: Set up QEMU
+        if: matrix.arch == 'loong64'
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Cache Rust, pnpm, and target
         uses: actions/cache@v4
@@ -59,7 +66,7 @@ jobs:
             -e DEBIAN_FRONTEND=noninteractive \
             -e CARGO_HOME=/workspace/.cargo \
             -e RUSTUP_HOME=/workspace/.rustup \
-            node:20-bookworm \
+            ${{ matrix.docker-image }} \
             bash -c "
               export PATH=\"\$CARGO_HOME/bin:\$PATH\" && \
               # 安装系统依赖
@@ -87,6 +94,12 @@ jobs:
               corepack prepare pnpm@9 --activate && \
               \
               # 安装前端依赖
+              if [ ${{ matrix.arch }} = "loong64" ]; then \
+                sed -i '#@tauri-apps/cli#d' package.json && \
+                pnpm add \
+                  https://github.com/loong64/tauri/releases/download/tauri-cli-v2.6.2/tauri-apps-cli-2.6.2.tgz \
+                  https://github.com/loong64/tauri/releases/download/tauri-cli-v2.6.2/tauri-apps-cli-linux-loong64-gnu-2.6.2.tgz; \
+              fi && \
               pnpm config set store-dir /workspace/.pnpm-store && \
               pnpm install --frozen-lockfile && \
               pnpm build:pro
@@ -159,9 +172,15 @@ jobs:
              🔹 `*_arm64.deb` / `*_aarch64.deb` - 适用于 Debian/Ubuntu/Deepin 等发行版
              🔹 `*-arm64.rpm` / `*-aarch64.rpm` - 适用于 Fedora/openSUSE 等发行版
              🔹 `linglong-store-arm64` - 原始可执行文件
+
+            #### LoongArch64 (loongarch64)
+             🔹 `*-loong64.AppImage` / `*-loongarch64.AppImage` - 通用格式，下载后添加可执行权限即可运行
+             🔹 `*_loong64.deb` / `*_loongarch64.deb` - 适用于 Debian/Ubuntu/Deepin 等发行版
+             🔹 `*-loong64.rpm` / `*-loongarch64.rpm` - 适用于 Fedora/openSUSE 等发行版
+             🔹 `linglong-store-loong64` - 原始可执行文件
             
             ### 系统要求
-            - Linux 操作系统（支持 x86_64 和 ARM64）
+            - Linux 操作系统（支持 x86_64 ARM64 LoongArch64）
             - 已安装玲珑包管理器 (ll-cli)
             - GTK 3.0+
             - WebKit2GTK 4.1+
